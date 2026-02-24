@@ -21,6 +21,14 @@ Alternative PowerShell launcher:
 2. After build, share `dist\24-7-Carbon-Launcher.exe`
 3. Recipient double-clicks the EXE, app opens automatically at `http://127.0.0.1:8000/ui`
 
+### Build EXE on GitHub (recommended)
+This repo includes a GitHub Actions workflow at `.github/workflows/release.yml` that builds and publishes the EXE on version tags.
+
+Release flow:
+1. Create a version tag: `git tag v1.0.0`
+2. Push it: `git push origin v1.0.0`
+3. Download `24-7-Carbon-Launcher.exe` from the GitHub Release assets
+
 ### Manual
 1. Backend:
    - `cd backend`
