@@ -1,0 +1,296 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>24-7 Carbon Simulator</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg: #f3f5ef;
+      --card: #ffffff;
+      --ink: #1f2a30;
+      --sub: #50626d;
+      --line: #d3dbe1;
+      --brand: #0b6e4f;
+      --brand-2: #0f4c81;
+      --warn: #a32020;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top left, #e9efe1, #f5f7f2 40%, #eef2f8);
+    }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 20px 18px 80px; }
+    .hero {
+      background: linear-gradient(120deg, #0b6e4f, #0f4c81);
+      color: #fff;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 14px 30px rgba(10, 34, 58, 0.2);
+    }
+    .hero h1 { margin: 0; font-size: 30px; letter-spacing: 0.2px; }
+    .hero p { margin: 8px 0 0; opacity: 0.92; }
+    .tabs { display: flex; gap: 10px; margin: 18px 0; }
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 5px 14px rgba(25, 35, 45, 0.06);
+    }
+    .card h2 { margin: 0 0 10px; font-size: 20px; }
+    .card h3 { margin: 0 0 8px; font-size: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    label { display: block; margin-bottom: 4px; font-size: 12px; color: var(--sub); font-weight: 700; }
+    input, select, textarea, button {
+      width: 100%;
+      border: 1px solid #bec9d1;
+      border-radius: 9px;
+      padding: 9px 10px;
+      font: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 90px; }
+    button {
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-alt { background: var(--brand-2); color: #fff; border-color: var(--brand-2); }
+    .btn-inline { width: auto; padding: 9px 13px; }
+    .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .resource-card {
+      border: 1px solid #d7e0e6;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #f9fbfd;
+    }
+    .small { font-size: 12px; color: var(--sub); }
+    .error { color: var(--warn); white-space: pre-wrap; font-weight: 600; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+    .metric .label { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+    .metric .value { font-size: 18px; font-weight: 700; }
+    .goal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .goal-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fff; }
+    .hidden { display: none !important; }
+    .chart { height: 360px; }
+    @media (max-width: 1100px) {
+      .grid, .grid-3, .summary-grid, .goal-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 760px) {
+      .grid, .grid-2, .grid-3, .summary-grid, .goal-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>24-7 Carbon Simulator</h1>
+    <p>Granular load vs supply accounting with interval emissions, matching metrics, and target-achievement analytics.</p>
+  </div>
+
+  <div class="tabs">
+    <button id="tab-inputs" class="tab active">Inputs</button>
+    <button id="tab-results" class="tab">Results</button>
+  </div>
+
+  <section id="page-inputs" class="page active">
+    <div class="card">
+      <h2>Run Controls</h2>
+      <div class="grid-2">
+        <div>
+          <label>Demo Scenario</label>
+          <select id="demo-scenario"></select>
+        </div>
+        <div>
+          <label>Scenario Description</label>
+          <div id="demo-scenario-description" class="small"></div>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button id="run-demo" class="btn-primary btn-inline">Run Demo</button>
+        <button id="run-manual" class="btn-alt btn-inline">Run With Current Inputs</button>
+      </div>
+      <p class="small">Demo preloads sample data. Manual requires load CSV and per-resource energy CSVs.</p>
+      <p id="error" class="error"></p>
+    </div>
+
+    <div class="card">
+      <h2>Project Configuration</h2>
+      <div class="grid">
+        <div><label>Site Latitude</label><input id="site-lat" type="number" step="any" value="51.5074" /></div>
+        <div><label>Site Longitude</label><input id="site-lon" type="number" step="any" value="-0.1278" /></div>
+        <div><label>Deliverability Radius (km)</label><input id="deliverability" type="number" value="20" /></div>
+        <div><label>Emissions Mode</label><select id="emissions-mode"><option value="operational">Operational</option><option value="lifecycle">Lifecycle</option></select></div>
+        <div><label>Missing Interval Strategy</label><select id="fill-strategy"><option value="reject">Reject</option><option value="forward_fill">Forward fill</option><option value="interpolate">Interpolate</option><option value="zero_fill">Zero fill</option></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Performance Goals (Optional)</h2>
+      <p class="small">Set targets and the app calculates what share of intervals/days/weeks/months pass both selected criteria.</p>
+      <div class="grid">
+        <div><label>Interval Renewable Target %</label><input id="goal-i-ren" type="number" step="any" placeholder="e.g. 80" /></div>
+        <div><label>Interval Emissions Target (gCO2e/kWh)</label><input id="goal-i-em" type="number" step="any" placeholder="e.g. 50" /></div>
+        <div><label>Daily Renewable Target %</label><input id="goal-d-ren" type="number" step="any" /></div>
+        <div><label>Daily Emissions Target (gCO2e/kWh)</label><input id="goal-d-em" type="number" step="any" /></div>
+        <div><label>Weekly Renewable Target %</label><input id="goal-w-ren" type="number" step="any" /></div>
+        <div><label>Weekly Emissions Target (gCO2e/kWh)</label><input id="goal-w-em" type="number" step="any" /></div>
+        <div><label>Monthly Renewable Target %</label><input id="goal-m-ren" type="number" step="any" /></div>
+        <div><label>Monthly Emissions Target (gCO2e/kWh)</label><input id="goal-m-em" type="number" step="any" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Load Profile</h2>
+      <p class="small">Required. Format: <code>timestamp,load_kwh</code> (ISO-8601 timestamps with timezone).</p>
+      <div class="grid-2">
+        <div><label>Upload CSV</label><input id="load-file" type="file" accept=".csv" /></div>
+      </div>
+      <label>Load CSV</label>
+      <textarea id="load-csv"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Supply Resources</h2>
+      <p class="small">Energy is always interval CSV. EF is required by your selected EF input mode.</p>
+      <div id="resources"></div>
+      <button id="add-resource" class="btn-inline">Add Resource</button>
+    </div>
+
+    <div class="card">
+      <h2>Grid EF (What's Left)</h2>
+      <div class="grid">
+        <div><label>EF Input Mode</label><select id="grid-ef-mode"><option value="country_default">Country default</option><option value="constant">Constant</option><option value="timeseries">CSV timeseries</option></select></div>
+        <div><label>Country default</label><select id="grid-country"></select></div>
+        <div id="grid-constant-wrap"><label>Constant EF Value</label><input id="grid-constant-ef" type="number" step="any" placeholder="kgCO2e/kWh unless unit changed" /></div>
+        <div><label>EF Unit</label><select id="grid-ef-unit"><option value="kgco2e_per_kwh">kgCO2e/kWh</option><option value="gco2e_per_kwh">gCO2e/kWh</option><option value="tco2e_per_mwh">tCO2e/MWh</option></select></div>
+      </div>
+      <div id="grid-csv-wrap">
+        <label>Upload EF CSV</label><input id="grid-ef-file" type="file" accept=".csv" />
+        <label>Grid EF CSV (<code>timestamp,kgco2e_per_kwh</code>)</label>
+        <textarea id="grid-ef-csv"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-results" class="page">
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="grid-2">
+        <div>
+          <label>Accounting Basis</label>
+          <select id="results-basis">
+            <option value="eligible">Eligible Deliverable</option>
+            <option value="physical">Physical</option>
+          </select>
+        </div>
+      </div>
+      <div id="summary-grid" class="summary-grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Explainers</h2>
+      <div id="explainers"></div>
+    </div>
+
+    <div class="card">
+      <h2>Goal Achievement</h2>
+      <div id="goal-grid" class="goal-grid"></div>
+    </div>
+
+    <div class="card"><h2>Interval Renewable %</h2><div id="chart-renewable-interval" class="chart"></div></div>
+    <div class="card"><h2>Interval Emissions Intensity (gCO2e/kWh)</h2><div id="chart-intensity-interval" class="chart"></div></div>
+    <div class="card"><h2>Interval Emissions (kgCO2e)</h2><div id="chart-emissions-interval" class="chart"></div></div>
+    <div class="card"><h2>Interval Grid Import (kWh)</h2><div id="chart-grid-interval" class="chart"></div></div>
+    <div class="card"><h2>Hourly Matching vs Legacy Annual Matching</h2><div id="chart-matching" class="chart"></div></div>
+    <div class="card"><h2>Renewable % Heatmap (Date x Hour)</h2><div id="chart-heatmap" class="chart"></div></div>
+
+    <div class="card">
+      <h2>Renewable % Rollup</h2>
+      <div class="grid-2">
+        <div>
+          <label>Rollup Period</label>
+          <select id="rollup-period">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="annual">Annual</option>
+          </select>
+        </div>
+      </div>
+      <div id="chart-rollup-renewable" class="chart"></div>
+      <div>
+        <h3>Rollup Values</h3>
+        <div id="rollup-table"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Grouped Analysis</h2>
+      <div class="grid-2">
+        <div><h3>Average by Hour of Day</h3><div id="chart-by-hour" class="chart"></div></div>
+        <div><h3>Average by Day of Week</h3><div id="chart-by-weekday" class="chart"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Weekly Interval Viewer</h2>
+      <div class="grid-2">
+        <div>
+          <label>Select Week</label>
+          <select id="week-select"></select>
+        </div>
+        <div>
+          <label>Metric</label>
+          <select id="week-metric">
+            <option value="kwh">Served kWh</option>
+            <option value="percent">% of load</option>
+            <option value="co2e">Emissions kgCO2e</option>
+          </select>
+        </div>
+      </div>
+      <div id="chart-weekly-composition" class="chart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Exports</h2>
+      <div class="row-actions">
+        <button id="download-summary" class="btn-inline">Download results_summary.csv</button>
+        <button id="download-interval" class="btn-inline">Download interval_results.csv</button>
+        <button id="download-report" class="btn-inline">Download report.html</button>
+      </div>
+      <p class="small">Logs</p>
+      <pre id="logs"></pre>
+    </div>
+  </section>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

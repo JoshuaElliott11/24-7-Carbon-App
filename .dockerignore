@@ -1,0 +1,14 @@
+.git
+.pytest_cache
+__pycache__
+build
+dist
+*.spec
+*.pyc
+*.pyo
+*.pyd
+*.log
+.venv
+venv
+node_modules
+desktop.ini

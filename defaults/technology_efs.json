@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "version": "2026.02",
+    "units": {
+      "operational_gco2e_per_kwh": "gCO2e/kWh",
+      "lifecycle_gco2e_per_kwh": "gCO2e/kWh"
+    },
+    "sources": [
+      "NREL lifecycle review (technology medians)",
+      "Our World in Data lifecycle compilation"
+    ],
+    "note": "Defaults are illustrative and must be replaced with jurisdiction-specific factors for formal reporting."
+  },
+  "technologies": {
+    "solar_pv_utility": {"operational_gco2e_per_kwh": 0, "lifecycle_gco2e_per_kwh": 48},
+    "wind_onshore": {"operational_gco2e_per_kwh": 0, "lifecycle_gco2e_per_kwh": 11},
+    "wind_offshore": {"operational_gco2e_per_kwh": 0, "lifecycle_gco2e_per_kwh": 12},
+    "hydro": {"operational_gco2e_per_kwh": 0, "lifecycle_gco2e_per_kwh": 24},
+    "nuclear": {"operational_gco2e_per_kwh": 5, "lifecycle_gco2e_per_kwh": 12},
+    "gas_ccgt": {"operational_gco2e_per_kwh": 370, "lifecycle_gco2e_per_kwh": 490},
+    "coal": {"operational_gco2e_per_kwh": 800, "lifecycle_gco2e_per_kwh": 820}
+  }
+}

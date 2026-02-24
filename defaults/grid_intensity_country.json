@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "version": "2026.02",
+    "units": "kgCO2e/kWh",
+    "sources": {
+      "uk": "UK Government GHG conversion factors",
+      "us": "EPA eGRID regional averages",
+      "global": "Ember electricity intensity country snapshots"
+    },
+    "note": "Annual-average defaults for demo only. Prefer time-series residual-mix or local factors where available."
+  },
+  "country_kgco2e_per_kwh": {
+    "GB": 0.18,
+    "US": 0.38,
+    "DE": 0.36,
+    "FR": 0.06,
+    "IN": 0.66,
+    "CN": 0.55,
+    "AU": 0.54,
+    "BR": 0.09,
+    "ZA": 0.72,
+    "JP": 0.43
+  },
+  "us_egrid_subregion_kgco2e_per_kwh": {
+    "CAMX": 0.25,
+    "ERCT": 0.39,
+    "MROE": 0.49,
+    "NYCW": 0.20,
+    "NWPP": 0.23,
+    "RFCM": 0.34,
+    "SPNO": 0.53,
+    "SRSO": 0.42
+  },
+  "uk_kgco2e_per_kwh": {
+    "national_average": 0.18
+  }
+}
