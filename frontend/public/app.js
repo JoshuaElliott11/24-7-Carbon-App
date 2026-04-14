@@ -237,11 +237,13 @@ function updateGridEfVisibility() {
 }
 
 function projectPayload() {
+  const locKey = document.getElementById("locationality-preset")?.value || "same_zone";
+  const loc = LOCATIONALITY_PRESETS[locKey] || LOCATIONALITY_PRESETS.same_zone;
   return {
     timezone: "UTC",
     site_latitude: Number(document.getElementById("site-lat").value),
     site_longitude: Number(document.getElementById("site-lon").value),
-    deliverability_km: Number(document.getElementById("deliverability").value),
+    deliverability_km: Number(loc.deliverabilityKm),
     sss_share_percent: Number(document.getElementById("sss-share").value || 0),
     fill_strategy: document.getElementById("fill-strategy").value,
     emissions_mode: document.getElementById("emissions-mode").value,
@@ -871,10 +873,9 @@ document.getElementById("locationality-preset").addEventListener("change", () =>
   const key = document.getElementById("locationality-preset").value;
   const p = LOCATIONALITY_PRESETS[key];
   if (!p) return;
-  document.getElementById("deliverability").value = p.deliverabilityKm;
   const text = document.getElementById("locationality-note");
   if (text) {
-    text.textContent = `${p.label}: mapped to deliverability radius ${p.deliverabilityKm} km in this model.`;
+    text.textContent = `${p.label}: this setting drives deliverability eligibility in the model (${p.deliverabilityKm} km equivalent).`;
   }
 });
 
@@ -928,7 +929,7 @@ loadDefaults().then(() => {
     .join("");
   document.getElementById("locationality-preset").value = "same_zone";
   document.getElementById("locationality-note").textContent =
-    `${LOCATIONALITY_PRESETS.same_zone.label}: mapped to deliverability radius ${LOCATIONALITY_PRESETS.same_zone.deliverabilityKm} km in this model.`;
+    `${LOCATIONALITY_PRESETS.same_zone.label}: this setting drives deliverability eligibility in the model (${LOCATIONALITY_PRESETS.same_zone.deliverabilityKm} km equivalent).`;
 
   addResource();
   updateGridEfVisibility();
