@@ -255,8 +255,9 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
             "Unmatched energy is the remaining load not hourly-covered by eligible locationality-filtered generation."
         ),
         "hourly_vs_legacy": (
-            "Hourly matching requires same-interval matching. Legacy annual matching allows annual netting, so "
-            "surplus clean generation in one hour can offset deficit in another when annual totals are computed."
+            "Hourly matching requires same-interval matching and applies eligible locationality filters. Legacy annual "
+            "matching uses annual netting across all renewable generation in the portfolio, so surplus in one hour can "
+            "offset deficit in another when annual totals are computed."
         ),
         "interval_emissions": (
             "Order of operations per interval: allocate SSS share first, then apply voluntary hourly matching, then "

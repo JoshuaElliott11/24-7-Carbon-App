@@ -103,7 +103,7 @@ const INFO_TEXT = {
   "eligible locationality served (kwh)": "Renewable served from resources included by their locationality preset.",
   "eligible locationality served (%)": "Share of load served by eligible locationality-filtered renewable resources.",
   "hourly matching (%)": "Share of load hourly-matched by eligible clean generation.",
-  "legacy annual matching (%)": "Annual-netted matching score (legacy volumetric method).",
+  "legacy annual matching (%)": "Annual-netted matching score using all portfolio renewable generation (legacy volumetric method).",
   "compliance gap (pp)": "Difference between legacy annual % and true hourly % in percentage points.",
   "reported annual emissions (kgco2e)": "Legacy-style annual reported emissions estimate.",
   "true hourly emissions (kgco2e)": "Physically aligned emissions from interval calculation order.",

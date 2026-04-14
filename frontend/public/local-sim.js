@@ -204,6 +204,7 @@
       let residualEmissions = 0;
       let hourlyMatched = 0;
       let renewableGenerated = 0;
+      let legacyRenewableGenerated = 0;
       let servedSum = 0;
 
       timestamps.forEach((ts) => {
@@ -214,6 +215,7 @@
 
         let remaining = Math.max(0, loadKwh - sssKwh);
         let rowRenewableServed = 0;
+        let rowLegacyRenewableGenerated = 0;
         const row = {
           timestamp: ts,
           load_kwh: loadKwh,
@@ -221,6 +223,12 @@
           sss_emissions_kg: sssEmKg,
           residual_ef_kg_per_kwh: Number(residualEf.get(ts) || 0),
         };
+
+        resources.forEach((r) => {
+          if (r.is_renewable) {
+            rowLegacyRenewableGenerated += Number(r.energy.get(ts) || 0);
+          }
+        });
 
         selected.forEach((r) => {
           const gen = Number(r.energy.get(ts) || 0);
@@ -265,11 +273,12 @@
         sssServed += sssKwh;
         sssEmissions += sssEmKg;
         residualEmissions += gridEm;
+        legacyRenewableGenerated += rowLegacyRenewableGenerated;
         const voluntaryLoad = Math.max(0, loadKwh - sssKwh);
         hourlyMatched += Math.min(voluntaryLoad, rowRenewableServed);
       });
 
-        const legacyMatched = Math.min(totalLoad, renewableGenerated);
+      const legacyMatched = Math.min(totalLoad, legacyRenewableGenerated);
       const annualResidualEf = interval.length
         ? interval.reduce((a, r) => a + Number(r.residual_ef_kg_per_kwh || 0), 0) / interval.length
         : 0;
@@ -281,7 +290,7 @@
       const carbonTax = Number(payload.project.carbon_tax_usd_per_tco2e || 85);
 
       const oldEnergyCost = (totalLoad / 1000) * energyPrice;
-      const oldRecCost = (renewableGenerated / 1000) * annualRec;
+      const oldRecCost = (legacyRenewableGenerated / 1000) * annualRec;
       const oldTax = (annualReportedEm / 1000) * carbonTax;
       const newEnergyCost = (totalLoad / 1000) * energyPrice;
       const newRecCost = (hourlyMatched / 1000) * hourlyTeac;
@@ -419,7 +428,7 @@
         matched_unmatched:
           "Hourly matched energy is the per-interval minimum of load and eligible locationality-filtered renewable generation. Unmatched energy is load not covered in that same interval.",
         hourly_vs_legacy:
-          "Legacy annual matching nets volumes across the year. Hourly matching evaluates each interval first, then aggregates.",
+          "Legacy annual matching nets annual volumes across all renewable generation in the portfolio. Hourly matching evaluates each interval first using eligible locationality-filtered resources.",
         locationality_scope:
           "Each resource carries a locationality preset. Same-zone and adjacent-zone assets are included in the eligible view, while unconnected assets are excluded.",
         interval_emissions:
