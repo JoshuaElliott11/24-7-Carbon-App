@@ -105,17 +105,28 @@ def _goal_achievement(rollup: pd.DataFrame, ren_target: Optional[float], emissio
     }
 
 
-def _allocate_interval(load_kwh: pd.Series, resources: list[ResourceSeries], grid_ef_kg_per_kwh: pd.Series) -> pd.DataFrame:
+def _allocate_interval(
+    load_kwh: pd.Series,
+    resources: list[ResourceSeries],
+    residual_ef_kg_per_kwh: pd.Series,
+    sss_share_percent: float,
+    sss_ef_kg_per_kwh: pd.Series,
+) -> pd.DataFrame:
     idx = load_kwh.index
     interval = pd.DataFrame(index=idx)
     interval["load_kwh"] = load_kwh
-    interval["grid_ef_kg_per_kwh"] = grid_ef_kg_per_kwh
+    interval["residual_ef_kg_per_kwh"] = residual_ef_kg_per_kwh
+    interval["sss_ef_kg_per_kwh"] = sss_ef_kg_per_kwh
+
+    sss_share = float(max(0.0, min(1.0, sss_share_percent / 100.0)))
+    interval["sss_served_kwh"] = interval["load_kwh"] * sss_share
+    interval["sss_emissions_kg"] = interval["sss_served_kwh"] * interval["sss_ef_kg_per_kwh"]
 
     interval["resource_generation_kwh"] = (
         sum_series([r.energy_kwh for r in resources], idx) if resources else pd.Series(0.0, index=idx)
     )
 
-    remaining = load_kwh.copy()
+    remaining = (load_kwh - interval["sss_served_kwh"]).clip(lower=0.0)
     renewable_served = pd.Series(0.0, index=idx)
     for r in resources:
         served = pd.concat([r.energy_kwh, remaining], axis=1).min(axis=1).clip(lower=0.0)
@@ -133,12 +144,14 @@ def _allocate_interval(load_kwh: pd.Series, resources: list[ResourceSeries], gri
             renewable_served = renewable_served.add(served, fill_value=0.0)
 
     interval["grid_import_kwh"] = remaining
-    interval["grid_emissions_kg"] = interval["grid_import_kwh"] * interval["grid_ef_kg_per_kwh"]
+    interval["grid_emissions_kg"] = interval["grid_import_kwh"] * interval["residual_ef_kg_per_kwh"]
     interval["renewable_served_kwh"] = renewable_served
     interval["spilled_total_kwh"] = (interval["resource_generation_kwh"] - (load_kwh - remaining)).clip(lower=0.0)
 
     resource_emission_cols = [c for c in interval.columns if c.endswith("_emissions_kg") and c != "grid_emissions_kg"]
-    interval["total_emissions_kgco2e"] = interval[resource_emission_cols].sum(axis=1) + interval["grid_emissions_kg"]
+    interval["total_emissions_kgco2e"] = (
+        interval[resource_emission_cols].sum(axis=1) + interval["grid_emissions_kg"] + interval["sss_emissions_kg"]
+    )
     interval["renewable_percent"] = 100.0 * interval["renewable_served_kwh"] / interval["load_kwh"].replace(0, 1e-12)
     interval["emissions_intensity_g_per_kwh"] = (
         1000.0 * interval["total_emissions_kgco2e"] / interval["load_kwh"].replace(0, 1e-12)
@@ -214,9 +227,26 @@ def _view_from_interval(
 
     served_cols = [c for c in interval.columns if c.endswith("_served_kwh") and c != "renewable_served_kwh"]
     served_total = interval[served_cols].sum(axis=1) if served_cols else pd.Series(0.0, index=idx)
+    annual_grid_ef = float(interval["residual_ef_kg_per_kwh"].mean()) if len(interval) else 0.0
+    annual_unmatched_legacy_kwh = max(0.0, total_load - legacy_annual_matched)
+    annual_reported_emissions_kg = float(annual_unmatched_legacy_kwh * annual_grid_ef)
+    energy_price = float(project.energy_price_usd_per_mwh)
+    annual_rec_price = float(project.annual_rec_usd_per_mwh)
+    hourly_teac_price = float(project.hourly_teac_usd_per_mwh)
+    carbon_tax = float(project.carbon_tax_usd_per_tco2e)
+
+    old_energy_cost = (total_load / 1000.0) * energy_price
+    old_rec_cost = (float(renewable_generation.sum()) / 1000.0) * annual_rec_price
+    old_tax = (annual_reported_emissions_kg / 1000.0) * carbon_tax
+    new_energy_cost = (total_load / 1000.0) * energy_price
+    new_rec_cost = (float(hourly_matched.sum()) / 1000.0) * hourly_teac_price
+    new_tax = (total_emissions / 1000.0) * carbon_tax
+
     summary = {
         "total_load_kwh": total_load,
         "total_emissions_kgco2e": total_emissions,
+        "true_emissions_kgco2e": total_emissions,
+        "reported_annual_emissions_kgco2e": annual_reported_emissions_kg,
         "emissions_intensity_kgco2e_per_kwh": total_emissions / total_load if total_load > 0 else 0.0,
         "emissions_intensity_g_per_kwh": (1000.0 * total_emissions / total_load) if total_load > 0 else 0.0,
         "hourly_matched_energy_kwh": float(hourly_matched.sum()),
@@ -224,9 +254,23 @@ def _view_from_interval(
         "legacy_annual_matching_percent": float(legacy_annual_matched / total_load) if total_load > 0 else 0.0,
         "unmatched_energy_kwh": float(unmatched.sum()),
         "grid_served_kwh": float(interval["grid_import_kwh"].sum()),
+        "sss_served_kwh": float(interval["sss_served_kwh"].sum()) if "sss_served_kwh" in interval.columns else 0.0,
+        "sss_emissions_kgco2e": float(interval["sss_emissions_kg"].sum()) if "sss_emissions_kg" in interval.columns else 0.0,
+        "residual_emissions_kgco2e": float(interval["grid_emissions_kg"].sum()),
         "renewable_served_kwh": float(interval["renewable_served_kwh"].sum()),
-        "energy_balance_error_kwh": float((interval["load_kwh"] - (served_total + interval["grid_import_kwh"])).abs().sum()),
+        "energy_balance_error_kwh": float(
+            (interval["load_kwh"] - (served_total + interval["grid_import_kwh"] + interval["sss_served_kwh"])).abs().sum()
+        ),
         "emissions_mode": emissions_mode.value,
+        "financial_old_energy_cost_usd": old_energy_cost,
+        "financial_old_rec_cost_usd": old_rec_cost,
+        "financial_old_tax_usd": old_tax,
+        "financial_old_total_usd": old_energy_cost + old_rec_cost + old_tax,
+        "financial_new_energy_cost_usd": new_energy_cost,
+        "financial_new_rec_cost_usd": new_rec_cost,
+        "financial_new_tax_usd": new_tax,
+        "financial_new_total_usd": new_energy_cost + new_rec_cost + new_tax,
+        "financial_delta_usd": (new_energy_cost + new_rec_cost + new_tax) - (old_energy_cost + old_rec_cost + old_tax),
     }
 
     goal = {
@@ -264,6 +308,7 @@ def simulate(
     project: ProjectConfig,
     emissions_mode: EmissionsMode,
     logs: list[str],
+    sss_ef_kg_per_kwh: Optional[pd.Series] = None,
 ) -> SimulationOutput:
     eligible_resources: list[ResourceSeries] = []
     for r in resources:
@@ -283,8 +328,22 @@ def simulate(
         if eligible:
             eligible_resources.append(r)
 
-    physical_interval = _allocate_interval(load_kwh, resources, grid_ef_kg_per_kwh)
-    eligible_interval = _allocate_interval(load_kwh, eligible_resources, grid_ef_kg_per_kwh)
+    sss_ef_series = sss_ef_kg_per_kwh if sss_ef_kg_per_kwh is not None else grid_ef_kg_per_kwh
+
+    physical_interval = _allocate_interval(
+        load_kwh,
+        resources,
+        grid_ef_kg_per_kwh,
+        project.sss_share_percent,
+        sss_ef_series,
+    )
+    eligible_interval = _allocate_interval(
+        load_kwh,
+        eligible_resources,
+        grid_ef_kg_per_kwh,
+        project.sss_share_percent,
+        sss_ef_series,
+    )
 
     physical_view = _view_from_interval(physical_interval, resources, load_kwh, project, emissions_mode)
     eligible_view = _view_from_interval(eligible_interval, eligible_resources, load_kwh, project, emissions_mode)

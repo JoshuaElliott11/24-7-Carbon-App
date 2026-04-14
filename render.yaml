@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: carbon-simulator
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
-    plan: starter
-    autoDeploy: true
-    healthCheckPath: /api/health

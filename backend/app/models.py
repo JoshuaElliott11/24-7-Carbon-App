@@ -40,8 +40,13 @@ class ProjectConfig(BaseModel):
     site_latitude: Optional[float] = None
     site_longitude: Optional[float] = None
     deliverability_km: float = Field(default=20.0, ge=0.0)
+    sss_share_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     fill_strategy: FillStrategy = FillStrategy.reject
     emissions_mode: EmissionsMode = EmissionsMode.operational
+    carbon_tax_usd_per_tco2e: float = Field(default=85.0, ge=0.0)
+    annual_rec_usd_per_mwh: float = Field(default=5.0, ge=0.0)
+    hourly_teac_usd_per_mwh: float = Field(default=15.0, ge=0.0)
+    energy_price_usd_per_mwh: float = Field(default=65.0, ge=0.0)
     interval_renewable_target_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     interval_emissions_target_g_per_kwh: Optional[float] = Field(default=None, ge=0.0)
     daily_renewable_target_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)

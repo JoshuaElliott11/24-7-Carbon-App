@@ -47,12 +47,13 @@ If sharing externally, see `docs/linkedin_user_guide.md`.
 - Backend API: `http://localhost:8000/api/health`
 
 ## Host As Web App (recommended for sharing)
-Use a single hosted URL to avoid EXE trust warnings and downloads.
+Use GitHub Pages for a shareable public URL.
 
 Quick path:
-1. Push repo to GitHub
-2. Deploy on Render using `render.yaml`
-3. Share URL: `https://<your-service>.onrender.com/ui`
+1. Push repo to GitHub.
+2. Enable Pages with source set to `GitHub Actions`.
+3. Run the `Deploy GitHub Pages` workflow or push to `main`.
+4. Share the published URL from the workflow summary.
 
 Details: `docs/hosting.md`
 

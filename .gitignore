@@ -4,4 +4,9 @@ dist/
 __pycache__/
 *.py[cod]
 
-desktop.ini
+[Dd]esktop.ini
+
+# Local artifacts that should not be committed
+~$*.docx
+/24-7-Carbon-Launcher.exe
+/Hourly Matching AI Research.docx

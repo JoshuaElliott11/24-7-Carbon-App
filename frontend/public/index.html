@@ -147,8 +147,13 @@
         <div><label>Site Latitude</label><input id="site-lat" type="number" step="any" value="51.5074" /></div>
         <div><label>Site Longitude</label><input id="site-lon" type="number" step="any" value="-0.1278" /></div>
         <div><label>Deliverability Radius (km)</label><input id="deliverability" type="number" value="20" /></div>
+        <div><label>SSS Pro-rata Share (%)</label><input id="sss-share" type="number" min="0" max="100" step="0.1" value="0" /></div>
         <div><label>Emissions Mode</label><select id="emissions-mode"><option value="operational">Operational</option><option value="lifecycle">Lifecycle</option></select></div>
         <div><label>Missing Interval Strategy</label><select id="fill-strategy"><option value="reject">Reject</option><option value="forward_fill">Forward fill</option><option value="interpolate">Interpolate</option><option value="zero_fill">Zero fill</option></select></div>
+        <div><label>Energy Price (USD/MWh)</label><input id="energy-price" type="number" min="0" step="0.1" value="65" /></div>
+        <div><label>Carbon Tax (USD/tCO2e)</label><input id="carbon-tax" type="number" min="0" step="0.1" value="85" /></div>
+        <div><label>Annual REC Price (USD/MWh)</label><input id="annual-rec-price" type="number" min="0" step="0.1" value="5" /></div>
+        <div><label>Hourly T-EAC Price (USD/MWh)</label><input id="hourly-teac-price" type="number" min="0" step="0.1" value="15" /></div>
       </div>
     </div>
 
@@ -196,6 +201,18 @@
         <label>Upload EF CSV</label><input id="grid-ef-file" type="file" accept=".csv" />
         <label>Grid EF CSV (<code>timestamp,kgco2e_per_kwh</code>)</label>
         <textarea id="grid-ef-csv"></textarea>
+      </div>
+
+      <h3 style="margin-top:16px;">Standard Supply Service (SSS) EF</h3>
+      <div class="grid">
+        <div><label>SSS EF Input Mode</label><select id="sss-ef-mode"><option value="country_default">Country default</option><option value="constant">Constant</option><option value="timeseries">CSV timeseries</option></select></div>
+        <div><label>SSS Country default</label><select id="sss-country"></select></div>
+        <div id="sss-constant-wrap"><label>SSS Constant EF Value</label><input id="sss-constant-ef" type="number" step="any" placeholder="kgCO2e/kWh unless unit changed" /></div>
+      </div>
+      <div id="sss-csv-wrap">
+        <label>Upload SSS EF CSV</label><input id="sss-ef-file" type="file" accept=".csv" />
+        <label>SSS EF CSV (<code>timestamp,kgco2e_per_kwh</code>)</label>
+        <textarea id="sss-ef-csv"></textarea>
       </div>
     </div>
   </section>
@@ -291,6 +308,7 @@
     </div>
   </section>
 </div>
+<script src="local-sim.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

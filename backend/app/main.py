@@ -49,6 +49,10 @@ class GridPayload(BaseModel):
     constant_ef: Optional[float] = None
     ef_series: list[SeriesPoint] = Field(default_factory=list)
     country_code: Optional[str] = "GB"
+    sss_ef_input_mode: Literal["constant", "timeseries", "country_default"] = "country_default"
+    sss_constant_ef: Optional[float] = None
+    sss_ef_series: list[SeriesPoint] = Field(default_factory=list)
+    sss_country_code: Optional[str] = "GB"
 
 
 class SimulationPayload(BaseModel):
@@ -124,30 +128,35 @@ def _resource_ef_series(
     return pd.Series(value, index=load_index)
 
 
-def _grid_ef_series(
-    grid: GridPayload,
+def _ef_series_by_mode(
+    mode: str,
+    points: list[SeriesPoint],
+    constant: Optional[float],
+    country_code: Optional[str],
+    emissions_unit: str,
     load_index: pd.DatetimeIndex,
     project: ProjectConfig,
     log: ValidationLog,
     grid_defaults_map: dict[str, float],
+    label: str,
 ) -> pd.Series:
-    if grid.ef_input_mode == "timeseries":
-        if not grid.ef_series:
-            raise ValidationError("Grid requires EF CSV timeseries when ef_input_mode=timeseries")
-        ef = _series_from_points(grid.ef_series)
+    if mode == "timeseries":
+        if not points:
+            raise ValidationError(f"{label} requires EF CSV timeseries when ef_input_mode=timeseries")
+        ef = _series_from_points(points)
         ef = align_to_load_index(ef, load_index, project.fill_strategy, log)
-        return ef.apply(lambda v: convert_ef_to_kg_per_kwh(v, grid.emissions_unit))
+        return ef.apply(lambda v: convert_ef_to_kg_per_kwh(v, emissions_unit))
 
-    if grid.ef_input_mode == "constant":
-        if grid.constant_ef is None:
-            raise ValidationError("Grid requires constant_ef when ef_input_mode=constant")
-        return pd.Series(convert_ef_to_kg_per_kwh(grid.constant_ef, grid.emissions_unit), index=load_index)
+    if mode == "constant":
+        if constant is None:
+            raise ValidationError(f"{label} requires constant_ef when ef_input_mode=constant")
+        return pd.Series(convert_ef_to_kg_per_kwh(constant, emissions_unit), index=load_index)
 
-    code = (grid.country_code or "GB").upper()
+    code = (country_code or "GB").upper()
     if code not in grid_defaults_map:
         raise ValidationError(f"Unsupported grid country code for default EF: {code}")
     value = float(grid_defaults_map[code])
-    log.messages.append(f"Applied default grid EF from country default: {code}")
+    log.messages.append(f"Applied default {label} EF from country default: {code}")
     return pd.Series(value, index=load_index)
 
 
@@ -201,8 +210,32 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
             )
         )
 
-    grid_ef = _grid_ef_series(payload.grid, load.index, payload.project, log, grid_defaults_map)
-    ensure_non_negative(grid_ef, "grid ef")
+    grid_ef = _ef_series_by_mode(
+        mode=payload.grid.ef_input_mode,
+        points=payload.grid.ef_series,
+        constant=payload.grid.constant_ef,
+        country_code=payload.grid.country_code,
+        emissions_unit=payload.grid.emissions_unit,
+        load_index=load.index,
+        project=payload.project,
+        log=log,
+        grid_defaults_map=grid_defaults_map,
+        label="residual grid",
+    )
+    sss_ef = _ef_series_by_mode(
+        mode=payload.grid.sss_ef_input_mode,
+        points=payload.grid.sss_ef_series,
+        constant=payload.grid.sss_constant_ef,
+        country_code=payload.grid.sss_country_code,
+        emissions_unit=payload.grid.emissions_unit,
+        load_index=load.index,
+        project=payload.project,
+        log=log,
+        grid_defaults_map=grid_defaults_map,
+        label="SSS",
+    )
+    ensure_non_negative(grid_ef, "residual grid ef")
+    ensure_non_negative(sss_ef, "sss ef")
 
     output = simulate(
         load_kwh=load,
@@ -211,6 +244,7 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
         project=payload.project,
         emissions_mode=payload.project.emissions_mode,
         logs=log.messages,
+        sss_ef_kg_per_kwh=sss_ef,
     )
 
     explainers = {
@@ -227,8 +261,9 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
             "excluded from market-based hourly matching and eligible-deliverable metrics."
         ),
         "interval_emissions": (
-            "Interval emissions = sum(resource served_kWh * resource EF) + (grid import_kWh * grid EF). "
-            "Spilled generation does not serve load and is not counted toward served-energy emissions."
+            "Order of operations per interval: allocate SSS share first, then apply voluntary hourly matching, then "
+            "apply residual EF to any remaining unmatched load. Spilled generation does not serve load and is not "
+            "counted toward served-energy emissions."
         ),
     }
 

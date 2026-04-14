@@ -1,41 +1,20 @@
-# Hosting (Lightweight)
+# Hosting on GitHub Pages
 
-This app can be hosted as a single web service (backend + UI together) with low footprint.
+This project now supports static hosting on GitHub Pages with client-side simulation fallback.
 
-## Recommended resource target
-- `1 vCPU`
-- `512 MB RAM`
-- `~1 GB disk`
+## What gets deployed
+- `frontend/public/index.html`
+- `frontend/public/app.js`
+- `frontend/public/local-sim.js`
+- Required defaults JSON files from `defaults/`
 
-This is typically enough for demos and moderate CSV sizes.
-
-## RAM/storage guards already in app
-- Max rows per uploaded series: `100,000`
-- Single worker in production container
-- No test dependencies in production image
-
-## Deploy on Render (simplest)
-1. Push this repo to GitHub.
-2. In Render, create a **Blueprint** from repo.
-3. It will pick up `render.yaml`.
-4. Wait for build/deploy.
-5. Open:
-   - `https://<your-service>.onrender.com/ui`
-
-## Deploy with Docker anywhere
-Build:
-```bash
-docker build -f backend/Dockerfile -t carbon-sim .
-```
-
-Run:
-```bash
-docker run -p 8000:8000 carbon-sim
-```
-
-Open:
-- `http://localhost:8000/ui`
+## Enable Pages
+1. Push this repository to GitHub.
+2. In repository settings, open `Pages`.
+3. Set source to `GitHub Actions`.
+4. Push to `main` (or run the workflow manually).
+5. Open the published URL shown by the `Deploy GitHub Pages` workflow.
 
 ## Notes
-- Web hosting avoids Windows SmartScreen warnings from unsigned EXEs.
-- For heavy production usage or very large datasets, increase RAM.
+- On Pages, the app uses local JSON defaults and runs simulation in-browser when API endpoints are unavailable.
+- If you run backend locally, the same frontend can still call `/api/*` for server execution.

@@ -3,6 +3,20 @@ let lastResult = null;
 let resourceCounter = 0;
 let gridDefaults = {};
 let demoScenarios = [];
+let defaultsCache = null;
+
+async function fetchDefaultsData() {
+  if (defaultsCache) return defaultsCache;
+  try {
+    const res = await fetch(`${API_BASE}/api/defaults`);
+    if (!res.ok) throw new Error("API defaults unavailable");
+    defaultsCache = await res.json();
+    return defaultsCache;
+  } catch (_) {
+    defaultsCache = await window.LocalSim.loadLocalDefaults();
+    return defaultsCache;
+  }
+}
 
 function activeBasis() {
   return document.getElementById("results-basis").value;
@@ -148,6 +162,10 @@ function updateGridEfVisibility() {
   const mode = document.getElementById("grid-ef-mode").value;
   document.getElementById("grid-constant-wrap").classList.toggle("hidden", mode !== "constant");
   document.getElementById("grid-csv-wrap").classList.toggle("hidden", mode !== "timeseries");
+
+  const sssMode = document.getElementById("sss-ef-mode").value;
+  document.getElementById("sss-constant-wrap").classList.toggle("hidden", sssMode !== "constant");
+  document.getElementById("sss-csv-wrap").classList.toggle("hidden", sssMode !== "timeseries");
 }
 
 function projectPayload() {
@@ -156,8 +174,13 @@ function projectPayload() {
     site_latitude: Number(document.getElementById("site-lat").value),
     site_longitude: Number(document.getElementById("site-lon").value),
     deliverability_km: Number(document.getElementById("deliverability").value),
+    sss_share_percent: Number(document.getElementById("sss-share").value || 0),
     fill_strategy: document.getElementById("fill-strategy").value,
     emissions_mode: document.getElementById("emissions-mode").value,
+    carbon_tax_usd_per_tco2e: Number(document.getElementById("carbon-tax").value || 85),
+    annual_rec_usd_per_mwh: Number(document.getElementById("annual-rec-price").value || 5),
+    hourly_teac_usd_per_mwh: Number(document.getElementById("hourly-teac-price").value || 15),
+    energy_price_usd_per_mwh: Number(document.getElementById("energy-price").value || 65),
     interval_renewable_target_percent: parseOptionalNumber("goal-i-ren"),
     interval_emissions_target_g_per_kwh: parseOptionalNumber("goal-i-em"),
     daily_renewable_target_percent: parseOptionalNumber("goal-d-ren"),
@@ -213,12 +236,17 @@ function collectResources() {
 
 function gridPayload() {
   const mode = document.getElementById("grid-ef-mode").value;
+  const sssMode = document.getElementById("sss-ef-mode").value;
   const grid = {
     ef_input_mode: mode,
     emissions_unit: document.getElementById("grid-ef-unit").value,
     country_code: document.getElementById("grid-country").value,
     constant_ef: null,
     ef_series: [],
+    sss_ef_input_mode: sssMode,
+    sss_country_code: document.getElementById("sss-country").value,
+    sss_constant_ef: null,
+    sss_ef_series: [],
   };
   if (mode === "constant") {
     const val = document.getElementById("grid-constant-ef").value.trim();
@@ -228,6 +256,16 @@ function gridPayload() {
     const series = parseCsv(document.getElementById("grid-ef-csv").value, "kgco2e_per_kwh");
     if (series.length === 0) throw new Error("Grid EF timeseries mode selected but CSV data is empty.");
     grid.ef_series = series;
+  }
+
+  if (sssMode === "constant") {
+    const val = document.getElementById("sss-constant-ef").value.trim();
+    if (val === "") throw new Error("SSS constant EF mode selected but value is empty.");
+    grid.sss_constant_ef = Number(val);
+  } else if (sssMode === "timeseries") {
+    const series = parseCsv(document.getElementById("sss-ef-csv").value, "kgco2e_per_kwh");
+    if (series.length === 0) throw new Error("SSS EF timeseries mode selected but CSV data is empty.");
+    grid.sss_ef_series = series;
   }
   return grid;
 }
@@ -261,7 +299,14 @@ function renderSummary(summary) {
     ["Eligible Deliverable Served (%)", summary.eligible_deliverable_served_percent],
     ["Hourly Matching (%)", (summary.hourly_matching_percent || 0) * 100],
     ["Legacy Annual Matching (%)", (summary.legacy_annual_matching_percent || 0) * 100],
+    ["Reported Annual Emissions (kgCO2e)", summary.reported_annual_emissions_kgco2e],
+    ["True Hourly Emissions (kgCO2e)", summary.true_emissions_kgco2e],
     ["Unmatched Energy (kWh)", summary.unmatched_energy_kwh],
+    ["SSS Served (kWh)", summary.sss_served_kwh],
+    ["Residual Emissions (kgCO2e)", summary.residual_emissions_kgco2e],
+    ["Legacy Total Cost (USD)", summary.financial_old_total_usd],
+    ["Hourly Strategy Cost (USD)", summary.financial_new_total_usd],
+    ["Cost Delta (USD)", summary.financial_delta_usd],
     ["Energy Balance Error (kWh)", summary.energy_balance_error_kwh],
   ];
   root.innerHTML = metrics.map(([label, value]) => `<div class="metric"><div class="label">${label}</div><div class="value">${formatNumber(value)}</div></div>`).join("");
@@ -506,29 +551,59 @@ function renderResults(data) {
 async function runSimulation(payload) {
   const error = document.getElementById("error");
   error.textContent = "";
-  const res = await fetch(`${API_BASE}/api/simulate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    error.textContent = await res.text();
-    return;
+  try {
+    const res = await fetch(`${API_BASE}/api/simulate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    const data = await res.json();
+    lastResult = data;
+    renderResults(data);
+    showPage("results");
+  } catch (_) {
+    try {
+      const defaults = await fetchDefaultsData();
+      const payloadForLocal = { ...payload };
+      if (payloadForLocal.use_demo) {
+        const demo = defaults.demo;
+        const scenarioId = payloadForLocal.demo_scenario || demo.default_scenario;
+        const scenario = (demo.scenarios || []).find((s) => s.id === scenarioId) || (demo.scenarios || [])[0];
+        payloadForLocal.load_series = (scenario?.load_profile || []).map((r) => ({ timestamp: r.timestamp, value: r.load_kwh }));
+        payloadForLocal.resources = scenario?.resources || [];
+        payloadForLocal.grid = {
+          ...(scenario?.grid || {}),
+          sss_ef_input_mode: (scenario?.grid || {}).sss_ef_input_mode || "country_default",
+          sss_country_code: (scenario?.grid || {}).sss_country_code || (scenario?.grid || {}).country_code || "GB",
+          sss_ef_series: (scenario?.grid || {}).sss_ef_series || [],
+        };
+      }
+      const data = window.LocalSim.simulate(payloadForLocal, defaults);
+      lastResult = data;
+      renderResults(data);
+      showPage("results");
+    } catch (innerErr) {
+      error.textContent = String(innerErr.message || innerErr);
+      showPage("inputs");
+    }
   }
-  const data = await res.json();
-  lastResult = data;
-  renderResults(data);
-  showPage("results");
 }
 
 async function loadDefaults() {
-  const res = await fetch(`${API_BASE}/api/defaults`);
-  const defaults = await res.json();
+  const defaults = await fetchDefaultsData();
   gridDefaults = defaults.grid_intensity.country_kgco2e_per_kwh || {};
   const countrySelect = document.getElementById("grid-country");
+  const sssCountrySelect = document.getElementById("sss-country");
   countrySelect.innerHTML = Object.keys(gridDefaults).sort().map((c) => `<option value="${c}">${c}</option>`).join("");
+  sssCountrySelect.innerHTML = Object.keys(gridDefaults).sort().map((c) => `<option value="${c}">${c}</option>`).join("");
   if (countrySelect.value && gridDefaults[countrySelect.value] !== undefined) {
     document.getElementById("grid-constant-ef").value = gridDefaults[countrySelect.value];
+  }
+  if (sssCountrySelect.value && gridDefaults[sssCountrySelect.value] !== undefined) {
+    document.getElementById("sss-constant-ef").value = gridDefaults[sssCountrySelect.value];
   }
 
   const demo = defaults.demo || {};
@@ -564,8 +639,7 @@ function applyGoalDefaults(goalDefaults = {}) {
 }
 
 async function loadDemoToInputs(selectedScenarioId = null) {
-  const res = await fetch(`${API_BASE}/api/defaults`);
-  const defaults = await res.json();
+  const defaults = await fetchDefaultsData();
   const demo = defaults.demo;
   let scenario = null;
   if (demo.scenarios?.length) {
@@ -582,10 +656,18 @@ async function loadDemoToInputs(selectedScenarioId = null) {
   document.getElementById("grid-ef-mode").value = active.grid.ef_input_mode || "country_default";
   document.getElementById("grid-country").value = active.grid.country_code || "GB";
   document.getElementById("grid-constant-ef").value = active.grid.constant_ef ?? (gridDefaults["GB"] || "");
+  document.getElementById("sss-ef-mode").value = active.grid.sss_ef_input_mode || "country_default";
+  document.getElementById("sss-country").value = active.grid.sss_country_code || active.grid.country_code || "GB";
+  document.getElementById("sss-constant-ef").value = active.grid.sss_constant_ef ?? active.grid.constant_ef ?? (gridDefaults["GB"] || "");
   if (active.grid.ef_series?.length) {
     document.getElementById("grid-ef-csv").value = toCsv(active.grid.ef_series.map((r) => ({ timestamp: r.timestamp, kgco2e_per_kwh: r.value })));
   } else {
     document.getElementById("grid-ef-csv").value = "";
+  }
+  if (active.grid.sss_ef_series?.length) {
+    document.getElementById("sss-ef-csv").value = toCsv(active.grid.sss_ef_series.map((r) => ({ timestamp: r.timestamp, kgco2e_per_kwh: r.value })));
+  } else {
+    document.getElementById("sss-ef-csv").value = "";
   }
   if (active.goal_defaults) applyGoalDefaults(active.goal_defaults);
   updateGridEfVisibility();
@@ -597,10 +679,16 @@ document.getElementById("tab-results").addEventListener("click", () => showPage(
 document.getElementById("add-resource").addEventListener("click", () => addResource());
 document.getElementById("load-file").addEventListener("change", () => loadFileToTextarea("load-file", "load-csv"));
 document.getElementById("grid-ef-file").addEventListener("change", () => loadFileToTextarea("grid-ef-file", "grid-ef-csv"));
+document.getElementById("sss-ef-file").addEventListener("change", () => loadFileToTextarea("sss-ef-file", "sss-ef-csv"));
 document.getElementById("grid-ef-mode").addEventListener("change", updateGridEfVisibility);
+document.getElementById("sss-ef-mode").addEventListener("change", updateGridEfVisibility);
 document.getElementById("grid-country").addEventListener("change", () => {
   const code = document.getElementById("grid-country").value;
   if (gridDefaults[code] !== undefined) document.getElementById("grid-constant-ef").value = gridDefaults[code];
+});
+document.getElementById("sss-country").addEventListener("change", () => {
+  const code = document.getElementById("sss-country").value;
+  if (gridDefaults[code] !== undefined) document.getElementById("sss-constant-ef").value = gridDefaults[code];
 });
 document.getElementById("demo-scenario").addEventListener("change", () => {
   updateDemoScenarioDescription();
@@ -628,7 +716,13 @@ document.getElementById("run-demo").addEventListener("click", async () => {
     project: projectPayload(),
     load_series: [],
     resources: [],
-    grid: { ef_input_mode: "country_default", country_code: "GB" },
+    grid: {
+      ef_input_mode: "country_default",
+      country_code: "GB",
+      sss_ef_input_mode: "country_default",
+      sss_country_code: "GB",
+      sss_ef_series: [],
+    },
   });
   await loadDemoToInputs(scenarioId);
 });
