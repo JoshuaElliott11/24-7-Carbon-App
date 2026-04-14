@@ -160,6 +160,7 @@ def _allocate_interval(
 def _view_from_interval(
     interval: pd.DataFrame,
     resources_for_matching: list[ResourceSeries],
+    legacy_resources_for_annual: list[ResourceSeries],
     all_load: pd.Series,
     project: ProjectConfig,
     emissions_mode: EmissionsMode,
@@ -173,10 +174,15 @@ def _view_from_interval(
         if resources_for_matching
         else pd.Series(0.0, index=idx)
     )
+    legacy_renewable_generation = (
+        sum_series([r.energy_kwh for r in legacy_resources_for_annual if r.is_renewable], idx)
+        if legacy_resources_for_annual
+        else pd.Series(0.0, index=idx)
+    )
     voluntary_load = (all_load - interval["sss_served_kwh"]).clip(lower=0.0)
     hourly_matched = pd.concat([renewable_generation, voluntary_load], axis=1).min(axis=1).clip(lower=0.0)
     unmatched = (voluntary_load - hourly_matched).clip(lower=0.0)
-    legacy_annual_matched = min(float(renewable_generation.sum()), float(all_load.sum()))
+    legacy_annual_matched = min(float(legacy_renewable_generation.sum()), float(all_load.sum()))
 
     daily = _rollup(interval, "D")
     weekly = _rollup(interval, "W-MON")
@@ -240,7 +246,7 @@ def _view_from_interval(
     carbon_tax = float(project.carbon_tax_usd_per_tco2e)
 
     old_energy_cost = (total_load / 1000.0) * energy_price
-    old_rec_cost = (float(renewable_generation.sum()) / 1000.0) * annual_rec_price
+    old_rec_cost = (float(legacy_renewable_generation.sum()) / 1000.0) * annual_rec_price
     old_tax = (annual_reported_emissions_kg / 1000.0) * carbon_tax
     new_energy_cost = (total_load / 1000.0) * energy_price
     new_rec_cost = (float(hourly_matched.sum()) / 1000.0) * hourly_teac_price
@@ -341,7 +347,21 @@ def simulate(
         sss_ef_series,
     )
 
-    physical_view = _view_from_interval(physical_interval, resources, load_kwh, project, emissions_mode)
-    eligible_view = _view_from_interval(eligible_interval, eligible_resources, load_kwh, project, emissions_mode)
+    physical_view = _view_from_interval(
+        physical_interval,
+        resources,
+        resources,
+        load_kwh,
+        project,
+        emissions_mode,
+    )
+    eligible_view = _view_from_interval(
+        eligible_interval,
+        eligible_resources,
+        resources,
+        load_kwh,
+        project,
+        emissions_mode,
+    )
 
     return SimulationOutput(physical=physical_view, eligible=eligible_view, logs=logs)

@@ -67,6 +67,7 @@ def test_locationality_gating_affects_hourly_matching():
 
     assert out.eligible.summary["hourly_matching_percent"] == 0.0
     # Legacy annual matching ignores locationality constraints in this simulator.
+    assert out.eligible.summary["legacy_annual_matching_percent"] == 1.0
     assert out.physical.summary["legacy_annual_matching_percent"] == 1.0
 
 

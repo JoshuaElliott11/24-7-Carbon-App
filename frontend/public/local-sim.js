@@ -97,9 +97,9 @@
 
   async function loadLocalDefaults() {
     const [techRes, gridRes, demoRes] = await Promise.all([
-      fetch("defaults/technology_efs.json"),
-      fetch("defaults/grid_intensity_country.json"),
-      fetch("defaults/demo_profiles.json"),
+      fetch("defaults/technology_efs.json", { cache: "no-store" }),
+      fetch("defaults/grid_intensity_country.json", { cache: "no-store" }),
+      fetch("defaults/demo_profiles.json", { cache: "no-store" }),
     ]);
     if (!techRes.ok || !gridRes.ok || !demoRes.ok) {
       throw new Error("Local defaults files are not available. Ensure defaults/*.json are deployed with the site.");

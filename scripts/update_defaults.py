@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "defaults" / "demo_profiles.json"
+OUT_WEB = ROOT / "frontend" / "public" / "defaults" / "demo_profiles.json"
 
 
 def _base_load(hours: int, seed: int) -> list[dict]:
@@ -39,6 +40,7 @@ def _resource(
     energy_series: list[dict],
     default_technology: str | None,
     is_renewable: bool,
+    locationality_preset: str,
     lat: float,
     lon: float,
     ef_mode: str = "default_technology",
@@ -51,6 +53,7 @@ def _resource(
         "emissions_unit": "kgco2e_per_kwh",
         "ef_input_mode": ef_mode,
         "default_technology": default_technology,
+        "locationality_preset": locationality_preset,
         "latitude": lat,
         "longitude": lon,
         "energy_series": energy_series,
@@ -103,10 +106,10 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
 
     # Scenario 1: strong performance
     s1_resources = [
-        _resource("solar_near", solar, "solar_pv_utility", True, 51.52, -0.12),
-        _resource("wind_near", wind_near, "wind_onshore", True, 51.58, -0.21),
-        _resource("wind_far", wind_far, "wind_onshore", True, 52.9, 0.6),
-        _resource("gas_peaker", gas_peaker, None, False, 51.49, -0.08, ef_mode="constant", constant_ef=0.37),
+        _resource("solar_near", solar, "solar_pv_utility", True, "same_zone", 51.52, -0.12),
+        _resource("wind_near", wind_near, "wind_onshore", True, "same_zone", 51.58, -0.21),
+        _resource("wind_far", wind_far, "wind_onshore", True, "adjacent_zone", 52.9, 0.6),
+        _resource("gas_peaker", gas_peaker, None, False, "unconnected", 51.49, -0.08, ef_mode="constant", constant_ef=0.37),
     ]
 
     # Scenario 2: reasonable/mid performance
@@ -116,34 +119,35 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
             _profile_from_load(load, lambda t, _l: (math.sin(((t.hour - 7) / 10) * math.pi) * 260 if 7 <= t.hour <= 17 else 0.0)),
             "solar_pv_utility",
             True,
+            "same_zone",
             51.52,
             -0.12,
         ),
-        _resource("wind_near", _profile_from_load(load, lambda _t, _l: 120 + rng.uniform(-50, 80)), "wind_onshore", True, 51.58, -0.21),
-        _resource("gas_mid", _profile_from_load(load, lambda t, _l: 85 if 16 <= t.hour <= 21 else 25), None, False, 51.45, -0.05, ef_mode="constant", constant_ef=0.37),
+        _resource("wind_near", _profile_from_load(load, lambda _t, _l: 120 + rng.uniform(-50, 80)), "wind_onshore", True, "adjacent_zone", 51.58, -0.21),
+        _resource("gas_mid", _profile_from_load(load, lambda t, _l: 85 if 16 <= t.hour <= 21 else 25), None, False, "same_zone", 51.45, -0.05, ef_mode="constant", constant_ef=0.37),
     ]
 
     # Scenario 3: poor/high-emissions
     s3_resources = [
-        _resource("small_solar", _profile_from_load(load, lambda t, _l: (math.sin(((t.hour - 7) / 10) * math.pi) * 120 if 7 <= t.hour <= 17 else 0.0)), "solar_pv_utility", True, 51.52, -0.12),
-        _resource("coal_baseload", _profile_from_load(load, lambda _t, _l: 70 + rng.uniform(-15, 25)), None, False, 51.43, -0.04, ef_mode="constant", constant_ef=0.8),
+        _resource("small_solar", _profile_from_load(load, lambda t, _l: (math.sin(((t.hour - 7) / 10) * math.pi) * 120 if 7 <= t.hour <= 17 else 0.0)), "solar_pv_utility", True, "same_zone", 51.52, -0.12),
+        _resource("coal_baseload", _profile_from_load(load, lambda _t, _l: 70 + rng.uniform(-15, 25)), None, False, "unconnected", 51.43, -0.04, ef_mode="constant", constant_ef=0.8),
     ]
 
     # Scenario 4: legacy annual looks strong, hourly weak (temporal mismatch)
     s4_resources = [
-        _resource("solar_oversized_midday", _profile_from_load(load, lambda t, _l: (math.sin(((t.hour - 7) / 10) * math.pi) * 820 if 7 <= t.hour <= 17 else 0.0)), "solar_pv_utility", True, 51.52, -0.12),
+        _resource("solar_oversized_midday", _profile_from_load(load, lambda t, _l: (math.sin(((t.hour - 7) / 10) * math.pi) * 820 if 7 <= t.hour <= 17 else 0.0)), "solar_pv_utility", True, "same_zone", 51.52, -0.12),
     ]
 
     # Scenario 5: legacy annual looks strong, locationality weak (spatial mismatch)
     s5_resources = [
-        _resource("wind_far_large", _profile_from_load(load, lambda _t, _l: 260 + rng.uniform(-40, 150)), "wind_onshore", True, 53.4, 1.2),
+        _resource("wind_far_large", _profile_from_load(load, lambda _t, _l: 260 + rng.uniform(-40, 150)), "wind_onshore", True, "unconnected", 53.4, 1.2),
     ]
 
     scenarios = [
         _scenario(
             "success_high_integrity",
             "Success: High-Integrity Portfolio",
-            "Strong near-site renewables with modest peaker usage. Good hourly and locationality-filtered matching.",
+            "Strong same-zone renewables with a mix of adjacent-zone and unconnected assets. Hourly matching stays high while locationality filters behave cleanly.",
             load,
             s1_resources,
             "GB",
@@ -161,7 +165,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _scenario(
             "reasonable_mixed_portfolio",
             "Reasonable: Mixed Portfolio",
-            "Balanced case with moderate renewables and meaningful grid/fossil dependence.",
+            "Balanced case with moderate renewables, mixed locationality presets, and meaningful grid/fossil dependence.",
             load,
             s2_resources,
             "GB",
@@ -179,7 +183,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _scenario(
             "bad_high_carbon",
             "Poor: High-Carbon Outcome",
-            "Low renewables and high-carbon supply produce weak goal achievement and high emissions.",
+            "Low renewables and high-carbon supply produce weak goal achievement, regardless of locationality.",
             load,
             s3_resources,
             "GB",
@@ -197,7 +201,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _scenario(
             "legacy_temporal_gap",
             "Legacy Trap: Annual Good, Hourly Weak (Temporal)",
-            "Oversized midday solar boosts annual matching, but hourly mismatch remains high at non-solar hours.",
+            "Oversized midday solar makes annual matching look perfect, but hourly coverage drops sharply outside solar hours.",
             load,
             s4_resources,
             "GB",
@@ -214,8 +218,8 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         ),
         _scenario(
             "legacy_spatial_gap",
-            "Legacy Trap: Annual Good, Locationality Weak (Spatial)",
-            "Large far-away wind makes annual numbers look strong, but locationality-filtered hourly matching is poor.",
+            "Locationality Trap: Unconnected Supply Excluded",
+            "Far-away wind is excluded from the eligible view, so both annual and hourly matching collapse when the portfolio lacks local supply.",
             load,
             s5_resources,
             "GB",
@@ -249,8 +253,12 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
 
 
 def main() -> None:
-    OUT.write_text(json.dumps(build_demo(), indent=2), encoding="utf-8")
+    payload = json.dumps(build_demo(), indent=2)
+    OUT.write_text(payload, encoding="utf-8")
+    OUT_WEB.parent.mkdir(parents=True, exist_ok=True)
+    OUT_WEB.write_text(payload, encoding="utf-8")
     print(f"Wrote {OUT}")
+    print(f"Wrote {OUT_WEB}")
 
 
 if __name__ == "__main__":

@@ -191,7 +191,7 @@ function setRunMode(mode, detail = "") {
 async function fetchDefaultsData() {
   if (defaultsCache) return defaultsCache;
   try {
-    const res = await fetch(`${API_BASE}/api/defaults`);
+    const res = await fetch(`${API_BASE}/api/defaults`, { cache: "no-store" });
     if (!res.ok) throw new Error("API defaults unavailable");
     defaultsCache = await res.json();
     return defaultsCache;
