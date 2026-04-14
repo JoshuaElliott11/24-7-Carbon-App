@@ -244,12 +244,24 @@ def _view_from_interval(
     annual_rec_price = float(project.annual_rec_usd_per_mwh)
     hourly_teac_price = float(project.hourly_teac_usd_per_mwh)
     carbon_tax = float(project.carbon_tax_usd_per_tco2e)
+    adjacent_zone_multiplier = float(project.adjacent_zone_cost_multiplier)
+
+    def _resource_cost_multiplier(resource: ResourceSeries) -> float:
+        return adjacent_zone_multiplier if resource.locationality_preset == "adjacent_zone" else 1.0
 
     old_energy_cost = (total_load / 1000.0) * energy_price
-    old_rec_cost = (float(legacy_renewable_generation.sum()) / 1000.0) * annual_rec_price
+    old_rec_cost = 0.0
+    for resource in legacy_resources_for_annual:
+        if resource.is_renewable:
+            old_rec_cost += (float(resource.energy_kwh.sum()) / 1000.0) * annual_rec_price * _resource_cost_multiplier(resource)
     old_tax = (annual_reported_emissions_kg / 1000.0) * carbon_tax
     new_energy_cost = (total_load / 1000.0) * energy_price
-    new_rec_cost = (float(hourly_matched.sum()) / 1000.0) * hourly_teac_price
+    new_rec_cost = 0.0
+    for resource in resources_for_matching:
+        if resource.is_renewable:
+            served_col = f"{resource.name}_served_kwh"
+            served_total = float(interval[served_col].sum()) if served_col in interval.columns else 0.0
+            new_rec_cost += (served_total / 1000.0) * hourly_teac_price * _resource_cost_multiplier(resource)
     new_tax = (total_emissions / 1000.0) * carbon_tax
 
     summary = {

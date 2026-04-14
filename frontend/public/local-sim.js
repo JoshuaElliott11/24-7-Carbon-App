@@ -288,12 +288,23 @@
       const annualRec = Number(payload.project.annual_rec_usd_per_mwh || 5);
       const hourlyTeac = Number(payload.project.hourly_teac_usd_per_mwh || 15);
       const carbonTax = Number(payload.project.carbon_tax_usd_per_tco2e || 85);
+      const adjacentZoneCostMultiplier = Number(payload.project.adjacent_zone_cost_multiplier || 1);
 
       const oldEnergyCost = (totalLoad / 1000) * energyPrice;
-      const oldRecCost = (legacyRenewableGenerated / 1000) * annualRec;
+      const oldRecCost = resources.reduce((acc, r) => {
+        if (!r.is_renewable) return acc;
+        const multiplier = r.locationality_preset === "adjacent_zone" ? adjacentZoneCostMultiplier : 1;
+        const annualGeneration = Array.from(r.energy.values()).reduce((sum, value) => sum + Number(value || 0), 0);
+        return acc + (annualGeneration / 1000) * annualRec * multiplier;
+      }, 0);
       const oldTax = (annualReportedEm / 1000) * carbonTax;
       const newEnergyCost = (totalLoad / 1000) * energyPrice;
-      const newRecCost = (hourlyMatched / 1000) * hourlyTeac;
+      const newRecCost = selected.reduce((acc, r) => {
+        if (!r.is_renewable) return acc;
+        const multiplier = r.locationality_preset === "adjacent_zone" ? adjacentZoneCostMultiplier : 1;
+        const servedTotal = interval.reduce((sum, row) => sum + Number(row[`${r.name}_served_kwh`] || 0), 0);
+        return acc + (servedTotal / 1000) * hourlyTeac * multiplier;
+      }, 0);
       const newTax = (totalEmissions / 1000) * carbonTax;
 
       const daily = rollupFromIntervals(interval, dayStart);

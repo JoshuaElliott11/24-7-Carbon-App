@@ -9,7 +9,7 @@
     {
       "id": "success_high_integrity",
       "label": "Success: High-Integrity Portfolio",
-      "description": "Strong same-zone renewables with a mix of adjacent-zone and unconnected assets. Hourly matching stays high while locationality filters behave cleanly.",
+      "description": "Strong same-zone renewables with explicit adjacent-zone support. The adjacent-zone wind is eligible in hourly matching, while the unconnected gas backup stays excluded from market-based claims.",
       "load_profile": [
         {
           "timestamp": "2026-01-01T00:00:00+00:00",
@@ -8106,7 +8106,7 @@
           "ef_series": []
         },
         {
-          "name": "wind_far",
+          "name": "wind_adjacent",
           "is_renewable": true,
           "energy_unit": "kwh",
           "emissions_unit": "kgco2e_per_kwh",
@@ -13531,7 +13531,7 @@
     {
       "id": "reasonable_mixed_portfolio",
       "label": "Reasonable: Mixed Portfolio",
-      "description": "Balanced case with moderate renewables, mixed locationality presets, and meaningful grid/fossil dependence.",
+      "description": "Balanced case with moderate renewables, including adjacent-zone wind that still counts for hourly matching. This shows how adjacent-zone support can lift the eligible view without treating it like a universal premium.",
       "load_profile": [
         {
           "timestamp": "2026-01-01T00:00:00+00:00",
@@ -51393,7 +51393,7 @@
       "ef_series": []
     },
     {
-      "name": "wind_far",
+      "name": "wind_adjacent",
       "is_renewable": true,
       "energy_unit": "kwh",
       "emissions_unit": "kgco2e_per_kwh",

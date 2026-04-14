@@ -108,7 +108,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
     s1_resources = [
         _resource("solar_near", solar, "solar_pv_utility", True, "same_zone", 51.52, -0.12),
         _resource("wind_near", wind_near, "wind_onshore", True, "same_zone", 51.58, -0.21),
-        _resource("wind_far", wind_far, "wind_onshore", True, "adjacent_zone", 52.9, 0.6),
+        _resource("wind_adjacent", wind_far, "wind_onshore", True, "adjacent_zone", 52.9, 0.6),
         _resource("gas_peaker", gas_peaker, None, False, "unconnected", 51.49, -0.08, ef_mode="constant", constant_ef=0.37),
     ]
 
@@ -147,7 +147,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _scenario(
             "success_high_integrity",
             "Success: High-Integrity Portfolio",
-            "Strong same-zone renewables with a mix of adjacent-zone and unconnected assets. Hourly matching stays high while locationality filters behave cleanly.",
+            "Strong same-zone renewables with explicit adjacent-zone support. The adjacent-zone wind is eligible in hourly matching, while the unconnected gas backup stays excluded from market-based claims.",
             load,
             s1_resources,
             "GB",
@@ -165,7 +165,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _scenario(
             "reasonable_mixed_portfolio",
             "Reasonable: Mixed Portfolio",
-            "Balanced case with moderate renewables, mixed locationality presets, and meaningful grid/fossil dependence.",
+            "Balanced case with moderate renewables, including adjacent-zone wind that still counts for hourly matching. This shows how adjacent-zone support can lift the eligible view without treating it like a universal premium.",
             load,
             s2_resources,
             "GB",

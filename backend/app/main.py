@@ -266,7 +266,8 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
         ),
         "locationality_scope": (
             "Each resource carries a locationality preset. Same-zone and adjacent-zone assets are eligible for the "
-            "eligible view, while unconnected assets are excluded from market-based claims."
+            "eligible view, while unconnected assets are excluded from market-based claims. Adjacent-zone cost effects "
+            "are project-specific and only appear when the adjacent-zone cost multiplier is set in the project inputs."
         ),
     }
 

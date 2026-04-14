@@ -46,6 +46,7 @@ class ProjectConfig(BaseModel):
     carbon_tax_usd_per_tco2e: float = Field(default=85.0, ge=0.0)
     annual_rec_usd_per_mwh: float = Field(default=5.0, ge=0.0)
     hourly_teac_usd_per_mwh: float = Field(default=15.0, ge=0.0)
+    adjacent_zone_cost_multiplier: float = Field(default=1.0, ge=0.0)
     energy_price_usd_per_mwh: float = Field(default=65.0, ge=0.0)
     interval_renewable_target_percent: Optional[float] = Field(default=None, ge=0.0, le=100.0)
     interval_emissions_target_g_per_kwh: Optional[float] = Field(default=None, ge=0.0)
