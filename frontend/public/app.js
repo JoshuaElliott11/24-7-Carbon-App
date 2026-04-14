@@ -5,6 +5,63 @@ let gridDefaults = {};
 let demoScenarios = [];
 let defaultsCache = null;
 
+const REGION_PRESETS = {
+  caiso: {
+    label: "California (CAISO)",
+    gridCountry: "US",
+    energyPrice: 65,
+    carbonTax: 85,
+    annualRec: 5,
+    hourlyTeac: 15,
+  },
+  ercot: {
+    label: "Texas (ERCOT)",
+    gridCountry: "US",
+    energyPrice: 40,
+    carbonTax: 85,
+    annualRec: 4,
+    hourlyTeac: 14,
+  },
+  uk: {
+    label: "United Kingdom",
+    gridCountry: "GB",
+    energyPrice: 85,
+    carbonTax: 85,
+    annualRec: 6,
+    hourlyTeac: 16,
+  },
+  germany: {
+    label: "Germany",
+    gridCountry: "DE",
+    energyPrice: 75,
+    carbonTax: 90,
+    annualRec: 6,
+    hourlyTeac: 17,
+  },
+};
+
+const LOCATIONALITY_PRESETS = {
+  same_zone: { label: "Same bidding zone", deliverabilityKm: 20 },
+  adjacent_zone: { label: "Adjacent zone (congested)", deliverabilityKm: 200 },
+  unconnected: { label: "Unconnected grid", deliverabilityKm: 0 },
+};
+
+let activeResultsSection = "overview";
+
+function setRunMode(mode, detail = "") {
+  const el = document.getElementById("run-mode");
+  if (!el) return;
+  if (mode === "api") {
+    el.textContent = `Compute mode: backend API${detail ? ` (${detail})` : ""}`;
+    el.style.color = "#0b6e4f";
+  } else if (mode === "local") {
+    el.textContent = `Compute mode: local fallback${detail ? ` (${detail})` : ""}`;
+    el.style.color = "#0f4c81";
+  } else {
+    el.textContent = "";
+  }
+}
+
 async function fetchDefaultsData() {
   if (defaultsCache) return defaultsCache;
   try {
@@ -43,6 +100,17 @@ function showPage(page) {
     tabInputs.classList.add("active");
     tabResults.classList.remove("active");
   }
+}
+
+function showResultsSection(section) {
+  activeResultsSection = section;
+  const sections = ["overview", "energy", "financial"];
+  sections.forEach((s) => {
+    const btn = document.getElementById(`results-view-${s}`);
+    const panel = document.getElementById(`results-panel-${s}`);
+    if (btn) btn.classList.toggle("active", s === section);
+    if (panel) panel.classList.toggle("active", s === section);
+  });
 }
 
 function parseCsv(text, valueColumn) {
@@ -194,7 +262,6 @@ function projectPayload() {
 
 function collectResources() {
   const cards = Array.from(document.querySelectorAll(".resource-card"));
-  if (cards.length === 0) throw new Error("Add at least one supply resource.");
   return cards.map((card) => {
     const id = card.getAttribute("data-id");
     const efMode = document.getElementById(`r-${id}-ef-mode`).value;
@@ -289,6 +356,9 @@ function formatNumber(v, digits = 2) {
 
 function renderSummary(summary) {
   const root = document.getElementById("summary-grid");
+  const legacyPct = (summary.legacy_annual_matching_percent || 0) * 100;
+  const hourlyPct = (summary.hourly_matching_percent || 0) * 100;
+  const complianceGap = legacyPct - hourlyPct;
   const metrics = [
     ["Total Load (kWh)", summary.total_load_kwh],
     ["Total Emissions (kgCO2e)", summary.total_emissions_kgco2e],
@@ -297,8 +367,9 @@ function renderSummary(summary) {
     ["Grid Served (kWh)", summary.grid_served_kwh],
     ["Eligible Deliverable Served (kWh)", summary.eligible_deliverable_served_kwh],
     ["Eligible Deliverable Served (%)", summary.eligible_deliverable_served_percent],
-    ["Hourly Matching (%)", (summary.hourly_matching_percent || 0) * 100],
-    ["Legacy Annual Matching (%)", (summary.legacy_annual_matching_percent || 0) * 100],
+    ["Hourly Matching (%)", hourlyPct],
+    ["Legacy Annual Matching (%)", legacyPct],
+    ["Compliance Gap (pp)", complianceGap],
     ["Reported Annual Emissions (kgCO2e)", summary.reported_annual_emissions_kgco2e],
     ["True Hourly Emissions (kgCO2e)", summary.true_emissions_kgco2e],
     ["Unmatched Energy (kWh)", summary.unmatched_energy_kwh],
@@ -310,6 +381,64 @@ function renderSummary(summary) {
     ["Energy Balance Error (kWh)", summary.energy_balance_error_kwh],
   ];
   root.innerHTML = metrics.map(([label, value]) => `<div class="metric"><div class="label">${label}</div><div class="value">${formatNumber(value)}</div></div>`).join("");
+}
+
+function renderFinancialCharts(summary) {
+  const oldEnergy = summary.financial_old_energy_cost_usd || 0;
+  const oldRec = summary.financial_old_rec_cost_usd || 0;
+  const oldTax = summary.financial_old_tax_usd || 0;
+  const newEnergy = summary.financial_new_energy_cost_usd || 0;
+  const newRec = summary.financial_new_rec_cost_usd || 0;
+  const newTax = summary.financial_new_tax_usd || 0;
+
+  Plotly.newPlot("chart-cost-stack", [
+    { x: ["Legacy annual", "Hourly strategy"], y: [oldEnergy, newEnergy], type: "bar", name: "Energy", marker: { color: "#94a3b8" } },
+    { x: ["Legacy annual", "Hourly strategy"], y: [oldRec, newRec], type: "bar", name: "Certificates", marker: { color: "#3b82f6" } },
+    { x: ["Legacy annual", "Hourly strategy"], y: [oldTax, newTax], type: "bar", name: "Carbon tax", marker: { color: "#ef4444" } },
+  ], {
+    barmode: "stack",
+    yaxis: { title: "USD" },
+    margin: { t: 30 },
+  });
+
+  Plotly.newPlot("chart-emissions-compare", [
+    {
+      x: ["Reported annual", "True hourly"],
+      y: [summary.reported_annual_emissions_kgco2e || 0, summary.true_emissions_kgco2e || 0],
+      type: "bar",
+      marker: { color: ["#64748b", "#dc2626"] },
+      text: ["Legacy reporting", "Hourly reality"],
+      textposition: "auto",
+    },
+  ], {
+    yaxis: { title: "kgCO2e" },
+    margin: { t: 30 },
+  });
+
+  const delta = (summary.financial_delta_usd || 0);
+  const takeAway = document.getElementById("financial-takeaway");
+  if (takeAway) {
+    takeAway.textContent =
+      delta > 0
+        ? `Hourly compliance increases total cost by ${formatNumber(delta, 0)} USD, typically from tighter temporal matching and higher carbon-cost realism.`
+        : `Hourly compliance reduces total cost by ${formatNumber(Math.abs(delta), 0)} USD in this case due to lower modeled tax and/or cleaner matching.`;
+  }
+}
+
+function renderDurationCurve(viewData) {
+  const interval = viewData.interval_results || [];
+  const ordered = interval
+    .map((r) => Number(r.renewable_percent || 0))
+    .sort((a, b) => b - a)
+    .map((matchPercent, i) => ({ hourIndex: i + 1, matchPercent }));
+
+  Plotly.newPlot("chart-duration-curve", [
+    { x: ordered.map((r) => r.hourIndex), y: ordered.map((r) => r.matchPercent), mode: "lines", type: "scatter", fill: "tozeroy", line: { color: "#4f46e5" } },
+  ], {
+    yaxis: { title: "Matched %", range: [0, 100] },
+    xaxis: { title: "Hour rank (best to worst)" },
+    margin: { t: 30 },
+  });
 }
 
 function renderExplainers(explainers) {
@@ -344,7 +473,6 @@ function renderIntervalCharts(data, viewData) {
   const interval = viewData.interval_results || [];
   const x = interval.map((r) => r.timestamp);
   const renewable = interval.map((r) => r.renewable_percent);
-  const eligibleRenewable = interval.map((r) => r.eligible_served_percent);
   const intensity = interval.map((r) => r.emissions_intensity_g_per_kwh);
   const emissions = interval.map((r) => r.total_emissions_kgco2e);
   const grid = interval.map((r) => r.grid_import_kwh);
@@ -354,7 +482,6 @@ function renderIntervalCharts(data, viewData) {
 
   Plotly.newPlot("chart-renewable-interval", [
     { x, y: renewable, mode: "lines", type: "scatter", name: "Physical Renewable %" },
-    { x, y: eligibleRenewable, mode: "lines", type: "scatter", name: "Eligible Deliverable %" },
   ], {
     title: "Interval Renewable Share",
     yaxis: { title: "%" },
@@ -536,21 +663,26 @@ function renderWeeklyViewer(viewData) {
 function renderResults(data) {
   const viewData = activeViewPayload(data);
   const basis = activeBasis();
-  renderSummary(data.summary?.[basis] || {});
+  const summary = data.summary?.[basis] || {};
+  renderSummary(summary);
   renderExplainers(data.explainers || {});
   renderGoalAchievement(viewData.goal_achievement || {});
   renderIntervalCharts(data, viewData);
-  renderMatchingChart(data.summary?.[basis] || {});
+  renderMatchingChart(summary);
+  renderDurationCurve(viewData);
+  renderFinancialCharts(summary);
   renderHeatmap(viewData);
   renderRollups(viewData);
   renderGroupedCharts(viewData);
   renderWeeklyViewer(viewData);
   document.getElementById("logs").textContent = (data.logs || []).join("\n");
+  showResultsSection(activeResultsSection);
 }
 
 async function runSimulation(payload) {
   const error = document.getElementById("error");
   error.textContent = "";
+  setRunMode("", "");
   try {
     const res = await fetch(`${API_BASE}/api/simulate`, {
       method: "POST",
@@ -558,14 +690,23 @@ async function runSimulation(payload) {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      throw new Error(await res.text());
+      const body = await res.text();
+      // Validation errors from API should be shown directly, not masked by local fallback.
+      if (res.status >= 400 && res.status < 500) {
+        throw new Error(body);
+      }
+      throw new Error(`Server unavailable (${res.status})`);
     }
     const data = await res.json();
     lastResult = data;
     renderResults(data);
+    setRunMode("api");
     showPage("results");
-  } catch (_) {
+  } catch (err) {
     try {
+      if ((err?.message || "").startsWith("{") || (err?.message || "").includes("detail") || (err?.message || "").includes("Validation")) {
+        throw err;
+      }
       const defaults = await fetchDefaultsData();
       const payloadForLocal = { ...payload };
       if (payloadForLocal.use_demo) {
@@ -584,6 +725,7 @@ async function runSimulation(payload) {
       const data = window.LocalSim.simulate(payloadForLocal, defaults);
       lastResult = data;
       renderResults(data);
+      setRunMode("local", "API unreachable");
       showPage("results");
     } catch (innerErr) {
       error.textContent = String(innerErr.message || innerErr);
@@ -696,6 +838,9 @@ document.getElementById("demo-scenario").addEventListener("change", () => {
 document.getElementById("results-basis").addEventListener("change", () => {
   if (lastResult) renderResults(lastResult);
 });
+document.getElementById("results-view-overview").addEventListener("click", () => showResultsSection("overview"));
+document.getElementById("results-view-energy").addEventListener("click", () => showResultsSection("energy"));
+document.getElementById("results-view-financial").addEventListener("click", () => showResultsSection("financial"));
 document.getElementById("rollup-period").addEventListener("change", () => {
   if (lastResult) renderRollups(activeViewPayload(lastResult));
 });
@@ -704,6 +849,33 @@ document.getElementById("week-select").addEventListener("change", () => {
 });
 document.getElementById("week-metric").addEventListener("change", () => {
   if (lastResult) renderWeeklyViewer(activeViewPayload(lastResult));
+});
+
+document.getElementById("region-preset").addEventListener("change", () => {
+  const key = document.getElementById("region-preset").value;
+  const p = REGION_PRESETS[key];
+  if (!p) return;
+  document.getElementById("energy-price").value = p.energyPrice;
+  document.getElementById("carbon-tax").value = p.carbonTax;
+  document.getElementById("annual-rec-price").value = p.annualRec;
+  document.getElementById("hourly-teac-price").value = p.hourlyTeac;
+  if (gridDefaults[p.gridCountry] !== undefined) {
+    document.getElementById("grid-country").value = p.gridCountry;
+    document.getElementById("sss-country").value = p.gridCountry;
+    document.getElementById("grid-constant-ef").value = gridDefaults[p.gridCountry];
+    document.getElementById("sss-constant-ef").value = gridDefaults[p.gridCountry];
+  }
+});
+
+document.getElementById("locationality-preset").addEventListener("change", () => {
+  const key = document.getElementById("locationality-preset").value;
+  const p = LOCATIONALITY_PRESETS[key];
+  if (!p) return;
+  document.getElementById("deliverability").value = p.deliverabilityKm;
+  const text = document.getElementById("locationality-note");
+  if (text) {
+    text.textContent = `${p.label}: mapped to deliverability radius ${p.deliverabilityKm} km in this model.`;
+  }
 });
 
 document.getElementById("run-demo").addEventListener("click", async () => {
@@ -750,6 +922,15 @@ document.getElementById("download-report").addEventListener("click", () => {
 });
 
 loadDefaults().then(() => {
+  const regionSelect = document.getElementById("region-preset");
+  regionSelect.innerHTML = Object.entries(REGION_PRESETS)
+    .map(([k, v]) => `<option value="${k}">${v.label}</option>`)
+    .join("");
+  document.getElementById("locationality-preset").value = "same_zone";
+  document.getElementById("locationality-note").textContent =
+    `${LOCATIONALITY_PRESETS.same_zone.label}: mapped to deliverability radius ${LOCATIONALITY_PRESETS.same_zone.deliverabilityKm} km in this model.`;
+
   addResource();
   updateGridEfVisibility();
+  showResultsSection("overview");
 });

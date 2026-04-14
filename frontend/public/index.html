@@ -34,6 +34,7 @@
     .hero h1 { margin: 0; font-size: 30px; letter-spacing: 0.2px; }
     .hero p { margin: 8px 0 0; opacity: 0.92; }
     .tabs { display: flex; gap: 10px; margin: 18px 0; }
+    .subtabs { display: flex; gap: 8px; margin: 12px 0 16px; flex-wrap: wrap; }
     .tab {
       border: 1px solid var(--line);
       background: #fff;
@@ -43,8 +44,20 @@
       font-weight: 600;
     }
     .tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .subtab {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .subtab.active { background: var(--brand-2); border-color: var(--brand-2); color: #fff; }
     .page { display: none; }
     .page.active { display: block; }
+    .result-panel { display: none; }
+    .result-panel.active { display: block; }
     .card {
       background: var(--card);
       border: 1px solid var(--line);
@@ -137,6 +150,7 @@
         <button id="run-demo" class="btn-primary btn-inline">Run Demo</button>
         <button id="run-manual" class="btn-alt btn-inline">Run With Current Inputs</button>
       </div>
+      <p id="run-mode" class="small"></p>
       <p class="small">Demo preloads sample data. Manual requires load CSV and per-resource energy CSVs.</p>
       <p id="error" class="error"></p>
     </div>
@@ -144,6 +158,15 @@
     <div class="card">
       <h2>Project Configuration</h2>
       <div class="grid">
+        <div><label>Region Preset</label><select id="region-preset"></select></div>
+        <div>
+          <label>Locationality Preset</label>
+          <select id="locationality-preset">
+            <option value="same_zone">Same bidding zone</option>
+            <option value="adjacent_zone">Adjacent zone (congested)</option>
+            <option value="unconnected">Unconnected grid</option>
+          </select>
+        </div>
         <div><label>Site Latitude</label><input id="site-lat" type="number" step="any" value="51.5074" /></div>
         <div><label>Site Longitude</label><input id="site-lon" type="number" step="any" value="-0.1278" /></div>
         <div><label>Deliverability Radius (km)</label><input id="deliverability" type="number" value="20" /></div>
@@ -155,6 +178,7 @@
         <div><label>Annual REC Price (USD/MWh)</label><input id="annual-rec-price" type="number" min="0" step="0.1" value="5" /></div>
         <div><label>Hourly T-EAC Price (USD/MWh)</label><input id="hourly-teac-price" type="number" min="0" step="0.1" value="15" /></div>
       </div>
+      <p id="locationality-note" class="small"></p>
     </div>
 
     <div class="card">
@@ -218,93 +242,118 @@
   </section>
 
   <section id="page-results" class="page">
-    <div class="card">
-      <h2>Summary</h2>
-      <div class="grid-2">
+    <div class="subtabs">
+      <button id="results-view-overview" class="subtab active">Overview</button>
+      <button id="results-view-energy" class="subtab">Energy</button>
+      <button id="results-view-financial" class="subtab">Financial & Carbon Risk</button>
+    </div>
+
+    <div id="results-panel-overview" class="result-panel active">
+      <div class="card">
+        <h2>Summary</h2>
+        <div class="grid-2">
+          <div>
+            <label>Accounting Basis</label>
+            <select id="results-basis">
+              <option value="eligible">Eligible Deliverable</option>
+              <option value="physical">Physical</option>
+            </select>
+          </div>
+        </div>
+        <div id="summary-grid" class="summary-grid"></div>
+      </div>
+
+      <div class="card">
+        <h2>Explainers</h2>
+        <div id="explainers"></div>
+      </div>
+
+      <div class="card">
+        <h2>Goal Achievement</h2>
+        <div id="goal-grid" class="goal-grid"></div>
+      </div>
+
+      <div class="card"><h2>Hourly Matching vs Legacy Annual Matching</h2><div id="chart-matching" class="chart"></div></div>
+      <div class="card"><h2>Matching Duration Curve</h2><div id="chart-duration-curve" class="chart"></div></div>
+
+      <div class="card">
+        <h2>Exports</h2>
+        <div class="row-actions">
+          <button id="download-summary" class="btn-inline">Download results_summary.csv</button>
+          <button id="download-interval" class="btn-inline">Download interval_results.csv</button>
+          <button id="download-report" class="btn-inline">Download report.html</button>
+        </div>
+        <p class="small">Logs</p>
+        <pre id="logs"></pre>
+      </div>
+    </div>
+
+    <div id="results-panel-energy" class="result-panel">
+      <div class="card"><h2>Interval Renewable %</h2><div id="chart-renewable-interval" class="chart"></div></div>
+      <div class="card"><h2>Interval Emissions Intensity (gCO2e/kWh)</h2><div id="chart-intensity-interval" class="chart"></div></div>
+      <div class="card"><h2>Interval Emissions (kgCO2e)</h2><div id="chart-emissions-interval" class="chart"></div></div>
+      <div class="card"><h2>Interval Grid Import (kWh)</h2><div id="chart-grid-interval" class="chart"></div></div>
+      <div class="card"><h2>Renewable % Heatmap (Date x Hour)</h2><div id="chart-heatmap" class="chart"></div></div>
+
+      <div class="card">
+        <h2>Renewable % Rollup</h2>
+        <div class="grid-2">
+          <div>
+            <label>Rollup Period</label>
+            <select id="rollup-period">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+            </select>
+          </div>
+        </div>
+        <div id="chart-rollup-renewable" class="chart"></div>
         <div>
-          <label>Accounting Basis</label>
-          <select id="results-basis">
-            <option value="eligible">Eligible Deliverable</option>
-            <option value="physical">Physical</option>
-          </select>
+          <h3>Rollup Values</h3>
+          <div id="rollup-table"></div>
         </div>
       </div>
-      <div id="summary-grid" class="summary-grid"></div>
-    </div>
 
-    <div class="card">
-      <h2>Explainers</h2>
-      <div id="explainers"></div>
-    </div>
-
-    <div class="card">
-      <h2>Goal Achievement</h2>
-      <div id="goal-grid" class="goal-grid"></div>
-    </div>
-
-    <div class="card"><h2>Interval Renewable %</h2><div id="chart-renewable-interval" class="chart"></div></div>
-    <div class="card"><h2>Interval Emissions Intensity (gCO2e/kWh)</h2><div id="chart-intensity-interval" class="chart"></div></div>
-    <div class="card"><h2>Interval Emissions (kgCO2e)</h2><div id="chart-emissions-interval" class="chart"></div></div>
-    <div class="card"><h2>Interval Grid Import (kWh)</h2><div id="chart-grid-interval" class="chart"></div></div>
-    <div class="card"><h2>Hourly Matching vs Legacy Annual Matching</h2><div id="chart-matching" class="chart"></div></div>
-    <div class="card"><h2>Renewable % Heatmap (Date x Hour)</h2><div id="chart-heatmap" class="chart"></div></div>
-
-    <div class="card">
-      <h2>Renewable % Rollup</h2>
-      <div class="grid-2">
-        <div>
-          <label>Rollup Period</label>
-          <select id="rollup-period">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="annual">Annual</option>
-          </select>
+      <div class="card">
+        <h2>Grouped Analysis</h2>
+        <div class="grid-2">
+          <div><h3>Average by Hour of Day</h3><div id="chart-by-hour" class="chart"></div></div>
+          <div><h3>Average by Day of Week</h3><div id="chart-by-weekday" class="chart"></div></div>
         </div>
       </div>
-      <div id="chart-rollup-renewable" class="chart"></div>
-      <div>
-        <h3>Rollup Values</h3>
-        <div id="rollup-table"></div>
-      </div>
-    </div>
 
-    <div class="card">
-      <h2>Grouped Analysis</h2>
-      <div class="grid-2">
-        <div><h3>Average by Hour of Day</h3><div id="chart-by-hour" class="chart"></div></div>
-        <div><h3>Average by Day of Week</h3><div id="chart-by-weekday" class="chart"></div></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Weekly Interval Viewer</h2>
-      <div class="grid-2">
-        <div>
-          <label>Select Week</label>
-          <select id="week-select"></select>
+      <div class="card">
+        <h2>Weekly Interval Viewer</h2>
+        <div class="grid-2">
+          <div>
+            <label>Select Week</label>
+            <select id="week-select"></select>
+          </div>
+          <div>
+            <label>Metric</label>
+            <select id="week-metric">
+              <option value="kwh">Served kWh</option>
+              <option value="percent">% of load</option>
+              <option value="co2e">Emissions kgCO2e</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label>Metric</label>
-          <select id="week-metric">
-            <option value="kwh">Served kWh</option>
-            <option value="percent">% of load</option>
-            <option value="co2e">Emissions kgCO2e</option>
-          </select>
-        </div>
+        <div id="chart-weekly-composition" class="chart"></div>
       </div>
-      <div id="chart-weekly-composition" class="chart"></div>
     </div>
 
-    <div class="card">
-      <h2>Exports</h2>
-      <div class="row-actions">
-        <button id="download-summary" class="btn-inline">Download results_summary.csv</button>
-        <button id="download-interval" class="btn-inline">Download interval_results.csv</button>
-        <button id="download-report" class="btn-inline">Download report.html</button>
+    <div id="results-panel-financial" class="result-panel">
+      <div class="card">
+        <h2>Carbon Emissions Reporting Gap</h2>
+        <div id="chart-emissions-compare" class="chart"></div>
       </div>
-      <p class="small">Logs</p>
-      <pre id="logs"></pre>
+
+      <div class="card">
+        <h2>Cost Stack: Legacy vs Hourly Strategy</h2>
+        <div id="chart-cost-stack" class="chart"></div>
+        <p id="financial-takeaway" class="small"></p>
+      </div>
     </div>
   </section>
 </div>

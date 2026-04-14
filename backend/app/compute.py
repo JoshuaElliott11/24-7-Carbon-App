@@ -146,9 +146,17 @@ def _allocate_interval(
     interval["grid_import_kwh"] = remaining
     interval["grid_emissions_kg"] = interval["grid_import_kwh"] * interval["residual_ef_kg_per_kwh"]
     interval["renewable_served_kwh"] = renewable_served
-    interval["spilled_total_kwh"] = (interval["resource_generation_kwh"] - (load_kwh - remaining)).clip(lower=0.0)
+    resource_served_cols = [c for c in interval.columns if c.endswith("_served_kwh") and c != "sss_served_kwh"]
+    resource_served_total = (
+        interval[resource_served_cols].sum(axis=1) if resource_served_cols else pd.Series(0.0, index=idx)
+    )
+    interval["spilled_total_kwh"] = (interval["resource_generation_kwh"] - resource_served_total).clip(lower=0.0)
 
-    resource_emission_cols = [c for c in interval.columns if c.endswith("_emissions_kg") and c != "grid_emissions_kg"]
+    resource_emission_cols = [
+        c
+        for c in interval.columns
+        if c.endswith("_emissions_kg") and c not in {"grid_emissions_kg", "sss_emissions_kg"}
+    ]
     interval["total_emissions_kgco2e"] = (
         interval[resource_emission_cols].sum(axis=1) + interval["grid_emissions_kg"] + interval["sss_emissions_kg"]
     )
@@ -225,7 +233,11 @@ def _view_from_interval(
     else:
         weekly_comp["served_percent"] = []
 
-    served_cols = [c for c in interval.columns if c.endswith("_served_kwh") and c != "renewable_served_kwh"]
+    served_cols = [
+        c
+        for c in interval.columns
+        if c.endswith("_served_kwh") and c not in {"renewable_served_kwh", "sss_served_kwh"}
+    ]
     served_total = interval[served_cols].sum(axis=1) if served_cols else pd.Series(0.0, index=idx)
     annual_grid_ef = float(interval["residual_ef_kg_per_kwh"].mean()) if len(interval) else 0.0
     annual_unmatched_legacy_kwh = max(0.0, total_load - legacy_annual_matched)
