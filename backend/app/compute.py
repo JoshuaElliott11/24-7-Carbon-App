@@ -183,8 +183,9 @@ def _view_from_interval(
         if resources_for_matching
         else pd.Series(0.0, index=idx)
     )
-    hourly_matched = pd.concat([renewable_generation, all_load], axis=1).min(axis=1).clip(lower=0.0)
-    unmatched = (all_load - hourly_matched).clip(lower=0.0)
+    voluntary_load = (all_load - interval["sss_served_kwh"]).clip(lower=0.0)
+    hourly_matched = pd.concat([renewable_generation, voluntary_load], axis=1).min(axis=1).clip(lower=0.0)
+    unmatched = (voluntary_load - hourly_matched).clip(lower=0.0)
     legacy_annual_matched = min(float(renewable_generation.sum()), float(all_load.sum()))
 
     daily = _rollup(interval, "D")
@@ -241,7 +242,8 @@ def _view_from_interval(
     served_total = interval[served_cols].sum(axis=1) if served_cols else pd.Series(0.0, index=idx)
     annual_grid_ef = float(interval["residual_ef_kg_per_kwh"].mean()) if len(interval) else 0.0
     annual_unmatched_legacy_kwh = max(0.0, total_load - legacy_annual_matched)
-    annual_reported_emissions_kg = float(annual_unmatched_legacy_kwh * annual_grid_ef)
+    annual_sss_emissions_kg = float(interval["sss_emissions_kg"].sum()) if "sss_emissions_kg" in interval.columns else 0.0
+    annual_reported_emissions_kg = float(annual_unmatched_legacy_kwh * annual_grid_ef) + annual_sss_emissions_kg
     energy_price = float(project.energy_price_usd_per_mwh)
     annual_rec_price = float(project.annual_rec_usd_per_mwh)
     hourly_teac_price = float(project.hourly_teac_usd_per_mwh)

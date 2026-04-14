@@ -48,6 +48,136 @@ const LOCATIONALITY_PRESETS = {
 
 let activeResultsSection = "overview";
 
+const INFO_TEXT = {
+  "run controls": "Controls for executing a demo or custom scenario and seeing whether results come from API or local fallback engine.",
+  "demo scenario": "Predefined scenario bundle including load, resources, grid factors, and default goals.",
+  "scenario description": "Human-readable summary of the selected demo case and expected behavior.",
+  "project configuration": "Site, market-boundary, and financial assumptions that define accounting behavior and cost outputs.",
+  "performance goals (optional)": "Optional KPI thresholds used to compute interval/daily/weekly/monthly pass rates.",
+  "load profile": "Facility demand input time series used as the denominator for matching and intensity metrics.",
+  "supply resources": "Generation and attribute sources that can be matched to load, subject to temporal and deliverability rules.",
+  "grid ef (what's left)": "Residual and SSS emission-factor assumptions applied after voluntary clean matching is allocated.",
+  "standard supply service (sss) ef": "Emission factor source for mandated utility service share that is allocated before voluntary matching.",
+  "name": "Resource identifier shown in outputs and logs.",
+  "is renewable?": "Flags whether the resource contributes to renewable-serving and matching metrics.",
+  "energy unit": "Input unit for generation data; normalized internally for calculations.",
+  "latitude (optional)": "Resource latitude used to estimate distance-based deliverability eligibility.",
+  "longitude (optional)": "Resource longitude used to estimate distance-based deliverability eligibility.",
+  "default technology": "Technology-specific default EF source when explicit EF data is not provided.",
+  "energy csv (required): timestamp,energy_kwh": "Resource generation profile by interval; required to compute served load and matching.",
+  "ef csv: timestamp,kgco2e_per_kwh": "Optional interval EF series for resource-specific emissions when timeseries EF mode is selected.",
+  "site latitude": "Latitude of the consuming facility. Used for deliverability distance calculations.",
+  "site longitude": "Longitude of the consuming facility. Used for deliverability distance calculations.",
+  "locationality preset": "Deliverability policy preset used to set eligibility boundary for market-based hourly matching.",
+  "region preset": "Convenience preset for default country EF and financial assumptions.",
+  "sss pro-rata share (%)": "Portion of load assigned to Standard Supply Service before voluntary hourly matching is applied.",
+  "emissions mode": "Select operational vs lifecycle technology defaults when using technology-based EF assumptions.",
+  "missing interval strategy": "How missing timestamps are handled: reject, forward fill, interpolate, or zero fill.",
+  "energy price (usd/mwh)": "Retail/wholesale energy spend assumption used in both legacy and hourly strategy totals.",
+  "carbon tax (usd/tco2e)": "Carbon cost assumption applied to reported (legacy) vs true hourly emissions.",
+  "annual rec price (usd/mwh)": "Certificate price for legacy annual matching approach.",
+  "hourly t-eac price (usd/mwh)": "Granular certificate premium for hourly matched energy volumes.",
+  "interval renewable target %": "Optional pass/fail target for each interval's renewable share.",
+  "interval emissions target (gco2e/kwh)": "Optional pass/fail target for each interval's emissions intensity.",
+  "daily renewable target %": "Optional pass/fail renewable target at daily rollup level.",
+  "daily emissions target (gco2e/kwh)": "Optional pass/fail emissions target at daily rollup level.",
+  "weekly renewable target %": "Optional pass/fail renewable target at weekly rollup level.",
+  "weekly emissions target (gco2e/kwh)": "Optional pass/fail emissions target at weekly rollup level.",
+  "monthly renewable target %": "Optional pass/fail renewable target at monthly rollup level.",
+  "monthly emissions target (gco2e/kwh)": "Optional pass/fail emissions target at monthly rollup level.",
+  "load csv": "Time-series facility demand in kWh by interval. Required for simulation.",
+  "upload csv": "Attach CSV input data; file content is loaded into the paired textarea for review and edit.",
+  "upload ef csv": "Attach emission-factor CSV for interval EF mode.",
+  "upload sss ef csv": "Attach SSS emission-factor CSV for interval SSS EF mode.",
+  "grid ef csv (timestamp,kgco2e_per_kwh)": "Residual-grid EF time series used when grid EF input mode is timeseries.",
+  "sss ef csv (timestamp,kgco2e_per_kwh)": "SSS EF time series used when SSS EF input mode is timeseries.",
+  "ef input mode": "Choose country default, constant EF, or timestamped EF timeseries.",
+  "country default": "Uses default annual-average country residual factor from reference dataset.",
+  "constant ef value": "Fixed emissions factor used for every interval.",
+  "ef unit": "Unit used for EF inputs; values are normalized internally to kgCO2e/kWh.",
+  "sss ef input mode": "Defines SSS emission factor source for pre-allocated SSS load share.",
+  "sss country default": "Country default EF used specifically for SSS allocation path.",
+  "sss constant ef value": "Fixed SSS EF used in each interval when constant mode is selected.",
+  "accounting basis": "Eligible = deliverability-constrained market claim view. Physical = all modeled resources.",
+  "total load (kwh)": "Total modeled energy consumption over the selected reporting period.",
+  "total emissions (kgco2e)": "Total emissions under interval-by-interval calculation order.",
+  "intensity (gco2e/kwh)": "Average emissions intensity of served load.",
+  "renewable served (kwh)": "Load served by resources flagged renewable within the active accounting basis.",
+  "grid served (kwh)": "Residual unmatched load served by grid after SSS and voluntary matching.",
+  "eligible deliverable served (kwh)": "Renewable served from resources inside deliverability boundary.",
+  "eligible deliverable served (%)": "Share of load served by eligible-deliverable renewable resources.",
+  "hourly matching (%)": "Share of load hourly-matched by eligible clean generation.",
+  "legacy annual matching (%)": "Annual-netted matching score (legacy volumetric method).",
+  "compliance gap (pp)": "Difference between legacy annual % and true hourly % in percentage points.",
+  "reported annual emissions (kgco2e)": "Legacy-style annual reported emissions estimate.",
+  "true hourly emissions (kgco2e)": "Physically aligned emissions from interval calculation order.",
+  "unmatched energy (kwh)": "Voluntary load not matched by eligible clean supply in same interval.",
+  "sss served (kwh)": "Load allocated to Standard Supply Service before voluntary matching.",
+  "residual emissions (kgco2e)": "Emissions from residual grid import after SSS and voluntary matching.",
+  "legacy total cost (usd)": "Legacy strategy total = energy + annual certificates + reported carbon cost.",
+  "hourly strategy cost (usd)": "Hourly strategy total = energy + hourly certificates + true carbon cost.",
+  "cost delta (usd)": "Hourly strategy total minus legacy strategy total.",
+  "energy balance error (kwh)": "Diagnostic check: should be near zero if interval accounting is consistent.",
+  "summary": "Primary accounting outputs for the selected basis, including energy, emissions, matching, and costs.",
+  "explainers": "Interpretation notes that describe methodology, ordering, and key accounting caveats.",
+  "goal achievement": "Pass-rate assessment against configured renewable and emissions targets at multiple rollups.",
+  "hourly matching vs legacy annual matching": "Direct comparison of temporal hourly matching against legacy annual netting percentage.",
+  "matching duration curve": "Sorted hourly matching profile to reveal tail-risk hours with poor clean coverage.",
+  "exports": "Downloadable outputs for reporting, audit support, and downstream analysis.",
+  "interval renewable %": "Interval-level renewable share of load in percent.",
+  "interval emissions intensity (gco2e/kwh)": "Interval-level emissions intensity after SSS allocation and residual calculation.",
+  "interval emissions (kgco2e)": "Interval total emissions in kgCO2e.",
+  "interval grid import (kwh)": "Residual grid energy required after clean and SSS allocations.",
+  "renewable % heatmap (date x hour)": "Calendar-hour map of renewable share to identify consistent deficit periods.",
+  "renewable % rollup": "Aggregated renewable percentage by selected period for trend and compliance tracking.",
+  "rollup period": "Select daily, weekly, monthly, or annual aggregation interval.",
+  "rollup values": "Tabular rollup values used to support charted aggregates.",
+  "grouped analysis": "Average performance by clock hour and weekday for operational pattern insight.",
+  "average by hour of day": "Mean metric profile by hour across the reporting window.",
+  "average by day of week": "Mean metric profile by weekday across the reporting window.",
+  "weekly interval viewer": "Detailed one-week decomposition of served energy or emissions by source.",
+  "select week": "Choose the ISO-like week bucket to inspect in detail.",
+  "metric": "Select whether weekly composition shows kWh, percent of load, or emissions.",
+  "carbon emissions reporting gap": "Comparison between legacy reported emissions and physically aligned hourly emissions.",
+  "cost stack: legacy vs hourly strategy": "Stacked cost decomposition of energy, certificates, and carbon costs under both strategies.",
+};
+
+function normalizeInfoKey(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*\n\s*/g, " ")
+    .trim();
+}
+
+function elementInfoKey(el) {
+  if (!el) return "";
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll(".info-icon").forEach((n) => n.remove());
+  return normalizeInfoKey(clone.textContent);
+}
+
+function addInfoIcon(target, tip) {
+  if (!target || !tip) return;
+  if (target.querySelector(":scope > .info-icon")) return;
+  const icon = document.createElement("span");
+  icon.className = "info-icon";
+  icon.textContent = "i";
+  icon.setAttribute("data-tip", tip);
+  target.appendChild(icon);
+}
+
+function applyInfoExplainers() {
+  document.querySelectorAll("label, .metric .label, h2, h3").forEach((el) => {
+    const key = elementInfoKey(el);
+    const dynamicResourceHeading = /^resource\s+\d+$/.test(key)
+      ? "A modeled energy resource block containing generation profile, EF assumptions, and location metadata."
+      : null;
+    const tip = INFO_TEXT[key] || dynamicResourceHeading || "Reporting definition for this field in annual-vs-hourly matching analysis.";
+    addInfoIcon(el, tip);
+  });
+}
+
 function setRunMode(mode, detail = "") {
   const el = document.getElementById("run-mode");
   if (!el) return;
@@ -224,6 +354,7 @@ function addResource(prefill = null) {
     }
     updateResourceEfVisibility(id);
   }
+  applyInfoExplainers();
 }
 
 function updateGridEfVisibility() {
@@ -383,6 +514,7 @@ function renderSummary(summary) {
     ["Energy Balance Error (kWh)", summary.energy_balance_error_kwh],
   ];
   root.innerHTML = metrics.map(([label, value]) => `<div class="metric"><div class="label">${label}</div><div class="value">${formatNumber(value)}</div></div>`).join("");
+  applyInfoExplainers();
 }
 
 function renderFinancialCharts(summary) {
@@ -679,6 +811,29 @@ function renderResults(data) {
   renderWeeklyViewer(viewData);
   document.getElementById("logs").textContent = (data.logs || []).join("\n");
   showResultsSection(activeResultsSection);
+  applyInfoExplainers();
+}
+
+function buildReportPack() {
+  if (!lastResult) return null;
+  return {
+    exported_at_utc: new Date().toISOString(),
+    methodology: {
+      matching_hourly_formula: "sum_h min(a_h, c_h) / sum_h c_h",
+      matching_annual_formula: "min(sum_h a_h, sum_h c_h) / sum_h c_h",
+      interval_order: ["SSS allocation", "voluntary hourly matching", "residual emissions"],
+      notes: [
+        "Eligible basis applies deliverability eligibility filters.",
+        "Physical basis includes all modeled resources.",
+        "Use true hourly emissions for physically aligned impact analysis.",
+      ],
+    },
+    scenario_inputs: {
+      project: projectPayload(),
+      grid: gridPayload(),
+    },
+    outputs: lastResult,
+  };
 }
 
 async function runSimulation(payload) {
@@ -921,6 +1076,14 @@ document.getElementById("download-report").addEventListener("click", () => {
   if (!lastResult) return;
   download("report.html", lastResult.report_html, "text/html");
 });
+const reportPackBtn = document.getElementById("download-report-pack");
+if (reportPackBtn) {
+  reportPackBtn.addEventListener("click", () => {
+    const pack = buildReportPack();
+    if (!pack) return;
+    download("report_pack.json", JSON.stringify(pack, null, 2), "application/json");
+  });
+}
 
 loadDefaults().then(() => {
   const regionSelect = document.getElementById("region-preset");
@@ -934,4 +1097,5 @@ loadDefaults().then(() => {
   addResource();
   updateGridEfVisibility();
   showResultsSection("overview");
+  applyInfoExplainers();
 });

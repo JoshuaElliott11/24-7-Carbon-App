@@ -99,6 +99,42 @@
       background: #f9fbfd;
     }
     .small { font-size: 12px; color: var(--sub); }
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-left: 6px;
+      border-radius: 50%;
+      border: 1px solid #8aa2b2;
+      color: #355063;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: help;
+      vertical-align: middle;
+      background: #f5f8fb;
+      position: relative;
+    }
+    .info-icon:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 22px;
+      width: 280px;
+      max-width: 80vw;
+      background: #1f2a30;
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.35;
+      white-space: normal;
+      z-index: 20;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+    }
     .error { color: var(--warn); white-space: pre-wrap; font-weight: 600; }
     .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .metric {
@@ -281,6 +317,7 @@
           <button id="download-summary" class="btn-inline">Download results_summary.csv</button>
           <button id="download-interval" class="btn-inline">Download interval_results.csv</button>
           <button id="download-report" class="btn-inline">Download report.html</button>
+          <button id="download-report-pack" class="btn-inline">Download report_pack.json</button>
         </div>
         <p class="small">Logs</p>
         <pre id="logs"></pre>

@@ -277,14 +277,15 @@
         sssServed += sssKwh;
         sssEmissions += sssEmKg;
         residualEmissions += gridEm;
-        hourlyMatched += Math.min(loadKwh, rowRenewableServed);
+        const voluntaryLoad = Math.max(0, loadKwh - sssKwh);
+        hourlyMatched += Math.min(voluntaryLoad, rowRenewableServed);
       });
 
-      const legacyMatched = Math.min(totalLoad, renewableGenerated);
+        const legacyMatched = Math.min(totalLoad, renewableGenerated);
       const annualResidualEf = interval.length
         ? interval.reduce((a, r) => a + Number(r.residual_ef_kg_per_kwh || 0), 0) / interval.length
         : 0;
-      const annualReportedEm = Math.max(0, totalLoad - legacyMatched) * annualResidualEf;
+        const annualReportedEm = (Math.max(0, totalLoad - legacyMatched) * annualResidualEf) + sssEmissions;
 
       const energyPrice = Number(payload.project.energy_price_usd_per_mwh || 65);
       const annualRec = Number(payload.project.annual_rec_usd_per_mwh || 5);
@@ -377,7 +378,7 @@
         hourly_matched_energy_kwh: hourlyMatched,
         hourly_matching_percent: totalLoad > 0 ? hourlyMatched / totalLoad : 0,
         legacy_annual_matching_percent: totalLoad > 0 ? legacyMatched / totalLoad : 0,
-        unmatched_energy_kwh: Math.max(0, totalLoad - hourlyMatched),
+        unmatched_energy_kwh: gridServed,
         grid_served_kwh: gridServed,
         sss_served_kwh: sssServed,
         sss_emissions_kgco2e: sssEmissions,
