@@ -9,7 +9,7 @@
     {
       "id": "success_high_integrity",
       "label": "Success: High-Integrity Portfolio",
-      "description": "Strong near-site renewables with modest peaker usage. Good hourly and deliverable matching.",
+      "description": "Strong near-site renewables with modest peaker usage. Good hourly and locationality-filtered matching.",
       "load_profile": [
         {
           "timestamp": "2026-01-01T00:00:00+00:00",
@@ -37873,8 +37873,8 @@
     },
     {
       "id": "legacy_spatial_gap",
-      "label": "Legacy Trap: Annual Good, Deliverability Weak (Spatial)",
-      "description": "Large far-away wind makes annual numbers look strong, but deliverable hourly matching is poor.",
+      "label": "Legacy Trap: Annual Good, Locationality Weak (Spatial)",
+      "description": "Large far-away wind makes annual numbers look strong, but locationality-filtered hourly matching is poor.",
       "load_profile": [
         {
           "timestamp": "2026-01-01T00:00:00+00:00",

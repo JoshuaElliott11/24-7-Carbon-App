@@ -10,7 +10,7 @@
 - `monthly_rollup` and `annual_rollup`: load, grid import, emissions, and intensity aggregates.
 
 ## Eligibility
-A resource is eligible for market-based hourly matching when its distance from site is within `deliverability_km`.
+A resource is eligible for market-based hourly matching when its locationality preset allows it to be included in the eligible view.
 
 ## Units
 - Energy: kWh (internal)

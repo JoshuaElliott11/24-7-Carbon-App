@@ -34,6 +34,7 @@ class ResourcePayload(BaseModel):
     is_renewable: bool = True
     energy_unit: Literal["kwh", "mwh", "gwh"] = "kwh"
     emissions_unit: Literal["kgco2e_per_kwh", "gco2e_per_kwh", "tco2e_per_mwh"] = "kgco2e_per_kwh"
+    locationality_preset: Literal["same_zone", "adjacent_zone", "unconnected"] = "same_zone"
     ef_input_mode: Literal["constant", "timeseries", "default_technology"] = "default_technology"
     default_technology: Optional[str] = None
     constant_ef: Optional[float] = None
@@ -205,6 +206,7 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
                 energy_kwh=energy,
                 ef_kg_per_kwh=ef,
                 is_renewable=resource.is_renewable,
+                locationality_preset=resource.locationality_preset,
                 latitude=resource.latitude,
                 longitude=resource.longitude,
             )
@@ -249,21 +251,21 @@ def _simulate_from_payload(payload: SimulationPayload) -> dict[str, Any]:
 
     explainers = {
         "matched_unmatched": (
-            "Hourly matched energy is the per-interval minimum of load and eligible deliverable generation. "
-            "Unmatched energy is the remaining load not hourly-covered by eligible deliverable generation."
+            "Hourly matched energy is the per-interval minimum of load and eligible locationality-filtered generation. "
+            "Unmatched energy is the remaining load not hourly-covered by eligible locationality-filtered generation."
         ),
         "hourly_vs_legacy": (
             "Hourly matching requires same-interval matching. Legacy annual matching allows annual netting, so "
             "surplus clean generation in one hour can offset deficit in another when annual totals are computed."
         ),
-        "deliverability_scope": (
-            "Resources outside deliverability radius can still serve physical load in this simulator, but they are "
-            "excluded from market-based hourly matching and eligible-deliverable metrics."
-        ),
         "interval_emissions": (
             "Order of operations per interval: allocate SSS share first, then apply voluntary hourly matching, then "
             "apply residual EF to any remaining unmatched load. Spilled generation does not serve load and is not "
             "counted toward served-energy emissions."
+        ),
+        "locationality_scope": (
+            "Each resource carries a locationality preset. Same-zone and adjacent-zone assets are eligible for the "
+            "eligible view, while unconnected assets are excluded from market-based claims."
         ),
     }
 

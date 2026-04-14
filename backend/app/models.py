@@ -28,6 +28,7 @@ class ResourceConfig(BaseModel):
     resource_type: ResourceType = ResourceType.supply
     energy_unit: Literal["kwh", "mwh", "gwh"] = "kwh"
     emissions_unit: Literal["kgco2e_per_kwh", "gco2e_per_kwh", "tco2e_per_mwh"] = "kgco2e_per_kwh"
+    locationality_preset: Literal["same_zone", "adjacent_zone", "unconnected"] = "same_zone"
     default_technology: Optional[str] = None
     constant_energy: Optional[float] = None
     constant_ef: Optional[float] = None
@@ -39,7 +40,6 @@ class ProjectConfig(BaseModel):
     timezone: str = "UTC"
     site_latitude: Optional[float] = None
     site_longitude: Optional[float] = None
-    deliverability_km: float = Field(default=20.0, ge=0.0)
     sss_share_percent: float = Field(default=0.0, ge=0.0, le=100.0)
     fill_strategy: FillStrategy = FillStrategy.reject
     emissions_mode: EmissionsMode = EmissionsMode.operational

@@ -181,25 +181,13 @@
         timestamps.forEach((ts) => ef.set(ts, v));
       }
 
-      let eligible = true;
-      if (
-        payload.project.site_latitude !== null &&
-        payload.project.site_longitude !== null &&
-        payload.project.site_latitude !== undefined &&
-        payload.project.site_longitude !== undefined &&
-        r.latitude !== null &&
-        r.longitude !== null &&
-        r.latitude !== undefined &&
-        r.longitude !== undefined
-      ) {
-        const dist = haversineKm(payload.project.site_latitude, payload.project.site_longitude, r.latitude, r.longitude);
-        if (dist > Number(payload.project.deliverability_km || 0)) {
-          eligible = false;
-          logs.push(`Resource '${r.name}' excluded from eligible view: ${dist.toFixed(2)} km > ${Number(payload.project.deliverability_km || 0).toFixed(2)} km`);
-        }
+      const locationalityPreset = String(r.locationality_preset || "same_zone");
+      const eligible = locationalityPreset !== "unconnected";
+      if (!eligible) {
+        logs.push(`Resource '${r.name}' excluded from eligible view due to locationality preset '${locationalityPreset}'`);
       }
 
-      return { ...r, energy, ef, eligible };
+      return { ...r, energy, ef, eligible, locationality_preset: locationalityPreset };
     });
 
     function buildView(useEligibleFilter) {
@@ -384,8 +372,8 @@
         sss_emissions_kgco2e: sssEmissions,
         residual_emissions_kgco2e: residualEmissions,
         renewable_served_kwh: renewableServed,
-        eligible_deliverable_served_kwh: renewableServed,
-        eligible_deliverable_served_percent: totalLoad > 0 ? (100 * renewableServed) / totalLoad : 0,
+        eligible_locationality_served_kwh: renewableServed,
+        eligible_locationality_served_percent: totalLoad > 0 ? (100 * renewableServed) / totalLoad : 0,
         energy_balance_error_kwh: Math.abs(totalLoad - (servedSum + gridServed + sssServed)),
         emissions_mode: payload.project.emissions_mode,
         financial_old_energy_cost_usd: oldEnergyCost,
@@ -429,11 +417,11 @@
       },
       explainers: {
         matched_unmatched:
-          "Hourly matched energy is the per-interval minimum of load and eligible deliverable renewable generation. Unmatched energy is load not covered in that same interval.",
+          "Hourly matched energy is the per-interval minimum of load and eligible locationality-filtered renewable generation. Unmatched energy is load not covered in that same interval.",
         hourly_vs_legacy:
           "Legacy annual matching nets volumes across the year. Hourly matching evaluates each interval first, then aggregates.",
-        deliverability_scope:
-          "Deliverability is enforced via site-to-resource distance. Out-of-bound resources are excluded from eligible view claims.",
+        locationality_scope:
+          "Each resource carries a locationality preset. Same-zone and adjacent-zone assets are included in the eligible view, while unconnected assets are excluded.",
         interval_emissions:
           "Order: SSS allocation, then voluntary matching, then residual mix EF on remaining unmatched load.",
       },

@@ -134,7 +134,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _resource("solar_oversized_midday", _profile_from_load(load, lambda t, _l: (math.sin(((t.hour - 7) / 10) * math.pi) * 820 if 7 <= t.hour <= 17 else 0.0)), "solar_pv_utility", True, 51.52, -0.12),
     ]
 
-    # Scenario 5: legacy annual looks strong, deliverability weak (spatial mismatch)
+    # Scenario 5: legacy annual looks strong, locationality weak (spatial mismatch)
     s5_resources = [
         _resource("wind_far_large", _profile_from_load(load, lambda _t, _l: 260 + rng.uniform(-40, 150)), "wind_onshore", True, 53.4, 1.2),
     ]
@@ -143,7 +143,7 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         _scenario(
             "success_high_integrity",
             "Success: High-Integrity Portfolio",
-            "Strong near-site renewables with modest peaker usage. Good hourly and deliverable matching.",
+            "Strong near-site renewables with modest peaker usage. Good hourly and locationality-filtered matching.",
             load,
             s1_resources,
             "GB",
@@ -214,8 +214,8 @@ def build_demo(hours: int = 24 * 28, seed: int = 42) -> dict:
         ),
         _scenario(
             "legacy_spatial_gap",
-            "Legacy Trap: Annual Good, Deliverability Weak (Spatial)",
-            "Large far-away wind makes annual numbers look strong, but deliverable hourly matching is poor.",
+            "Legacy Trap: Annual Good, Locationality Weak (Spatial)",
+            "Large far-away wind makes annual numbers look strong, but locationality-filtered hourly matching is poor.",
             load,
             s5_resources,
             "GB",

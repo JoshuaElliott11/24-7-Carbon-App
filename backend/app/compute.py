@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import asin, cos, radians, sin, sqrt
 from typing import Optional
 
 import pandas as pd
@@ -16,6 +15,7 @@ class ResourceSeries:
     energy_kwh: pd.Series
     ef_kg_per_kwh: pd.Series
     is_renewable: bool
+    locationality_preset: str = "same_zone"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -40,16 +40,6 @@ class SimulationOutput:
     physical: ViewOutput
     eligible: ViewOutput
     logs: list[str]
-
-
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    radius_km = 6371.0
-    dlat = radians(lat2 - lat1)
-    dlon = radians(lon2 - lon1)
-    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
-    c = 2 * asin(sqrt(a))
-    return radius_km * c
-
 
 def _rollup(interval: pd.DataFrame, freq: str) -> pd.DataFrame:
     grouped = interval.resample(freq).agg(
@@ -326,20 +316,12 @@ def simulate(
 ) -> SimulationOutput:
     eligible_resources: list[ResourceSeries] = []
     for r in resources:
-        eligible = True
-        if (
-            project.site_latitude is not None
-            and project.site_longitude is not None
-            and r.latitude is not None
-            and r.longitude is not None
-        ):
-            dist = haversine_km(project.site_latitude, project.site_longitude, r.latitude, r.longitude)
-            if dist > project.deliverability_km:
-                eligible = False
-                logs.append(
-                    f"Resource '{r.name}' excluded from eligible view due to distance {dist:.2f} km > {project.deliverability_km:.2f} km"
-                )
-        if eligible:
+        eligible = r.locationality_preset != "unconnected"
+        if not eligible:
+            logs.append(
+                f"Resource '{r.name}' excluded from eligible view due to locationality preset '{r.locationality_preset}'"
+            )
+        else:
             eligible_resources.append(r)
 
     sss_ef_series = sss_ef_kg_per_kwh if sss_ef_kg_per_kwh is not None else grid_ef_kg_per_kwh

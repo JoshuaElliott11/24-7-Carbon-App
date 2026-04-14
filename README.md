@@ -3,7 +3,7 @@
 Web app + backend to model interval electricity load, supply, and emissions with:
 - residual grid import (`what's left`)
 - hourly matching vs legacy annual matching
-- deliverability gating by distance
+- locationality-based eligibility by asset preset
 - multiple user-defined supply resources (each with constant or CSV energy/EF inputs)
 - defaults/demo mode for zero-upload runs
 - CSV and HTML export outputs
@@ -65,7 +65,7 @@ Included scenarios:
 - Reasonable: Mixed Portfolio
 - Poor: High-Carbon Outcome
 - Legacy Trap: Annual Good, Hourly Weak (Temporal)
-- Legacy Trap: Annual Good, Deliverability Weak (Spatial)
+- Legacy Trap: Annual Good, Locationality Weak (Spatial)
 
 Each scenario includes recommended goal defaults so goal-achievement panels show desired vs achieved outcomes.
 

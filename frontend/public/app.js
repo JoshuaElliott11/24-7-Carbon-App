@@ -41,9 +41,9 @@ const REGION_PRESETS = {
 };
 
 const LOCATIONALITY_PRESETS = {
-  same_zone: { label: "Same bidding zone", deliverabilityKm: 20 },
-  adjacent_zone: { label: "Adjacent zone (congested)", deliverabilityKm: 200 },
-  unconnected: { label: "Unconnected grid", deliverabilityKm: 0 },
+  same_zone: { label: "Same bidding zone" },
+  adjacent_zone: { label: "Adjacent zone (congested)" },
+  unconnected: { label: "Unconnected grid" },
 };
 
 let activeResultsSection = "overview";
@@ -52,23 +52,19 @@ const INFO_TEXT = {
   "run controls": "Controls for executing a demo or custom scenario and seeing whether results come from API or local fallback engine.",
   "demo scenario": "Predefined scenario bundle including load, resources, grid factors, and default goals.",
   "scenario description": "Human-readable summary of the selected demo case and expected behavior.",
-  "project configuration": "Site, market-boundary, and financial assumptions that define accounting behavior and cost outputs.",
+  "project configuration": "Project-wide financial assumptions that define accounting behavior and cost outputs.",
   "performance goals (optional)": "Optional KPI thresholds used to compute interval/daily/weekly/monthly pass rates.",
   "load profile": "Facility demand input time series used as the denominator for matching and intensity metrics.",
-  "supply resources": "Generation and attribute sources that can be matched to load, subject to temporal and deliverability rules.",
+  "supply resources": "Generation and attribute sources that can be matched to load, subject to temporal and locationality rules.",
   "grid ef (what's left)": "Residual and SSS emission-factor assumptions applied after voluntary clean matching is allocated.",
   "standard supply service (sss) ef": "Emission factor source for mandated utility service share that is allocated before voluntary matching.",
   "name": "Resource identifier shown in outputs and logs.",
   "is renewable?": "Flags whether the resource contributes to renewable-serving and matching metrics.",
   "energy unit": "Input unit for generation data; normalized internally for calculations.",
-  "latitude (optional)": "Resource latitude used to estimate distance-based deliverability eligibility.",
-  "longitude (optional)": "Resource longitude used to estimate distance-based deliverability eligibility.",
+  "locationality preset": "Per-resource eligibility preset used to determine whether the asset belongs in the eligible view.",
   "default technology": "Technology-specific default EF source when explicit EF data is not provided.",
   "energy csv (required): timestamp,energy_kwh": "Resource generation profile by interval; required to compute served load and matching.",
   "ef csv: timestamp,kgco2e_per_kwh": "Optional interval EF series for resource-specific emissions when timeseries EF mode is selected.",
-  "site latitude": "Latitude of the consuming facility. Used for deliverability distance calculations.",
-  "site longitude": "Longitude of the consuming facility. Used for deliverability distance calculations.",
-  "locationality preset": "Deliverability policy preset used to set eligibility boundary for market-based hourly matching.",
   "region preset": "Convenience preset for default country EF and financial assumptions.",
   "sss pro-rata share (%)": "Portion of load assigned to Standard Supply Service before voluntary hourly matching is applied.",
   "emissions mode": "Select operational vs lifecycle technology defaults when using technology-based EF assumptions.",
@@ -98,14 +94,14 @@ const INFO_TEXT = {
   "sss ef input mode": "Defines SSS emission factor source for pre-allocated SSS load share.",
   "sss country default": "Country default EF used specifically for SSS allocation path.",
   "sss constant ef value": "Fixed SSS EF used in each interval when constant mode is selected.",
-  "accounting basis": "Eligible = deliverability-constrained market claim view. Physical = all modeled resources.",
+  "accounting basis": "Eligible = locationality-filtered market claim view. Physical = all modeled resources.",
   "total load (kwh)": "Total modeled energy consumption over the selected reporting period.",
   "total emissions (kgco2e)": "Total emissions under interval-by-interval calculation order.",
   "intensity (gco2e/kwh)": "Average emissions intensity of served load.",
   "renewable served (kwh)": "Load served by resources flagged renewable within the active accounting basis.",
   "grid served (kwh)": "Residual unmatched load served by grid after SSS and voluntary matching.",
-  "eligible deliverable served (kwh)": "Renewable served from resources inside deliverability boundary.",
-  "eligible deliverable served (%)": "Share of load served by eligible-deliverable renewable resources.",
+  "eligible locationality served (kwh)": "Renewable served from resources included by their locationality preset.",
+  "eligible locationality served (%)": "Share of load served by eligible locationality-filtered renewable resources.",
   "hourly matching (%)": "Share of load hourly-matched by eligible clean generation.",
   "legacy annual matching (%)": "Annual-netted matching score (legacy volumetric method).",
   "compliance gap (pp)": "Difference between legacy annual % and true hourly % in percentage points.",
@@ -298,8 +294,7 @@ function resourceCardHtml(id) {
       <div><label>Is Renewable?</label><select id="r-${id}-renewable"><option value="true">Yes</option><option value="false">No</option></select></div>
       <div><label>Energy Unit</label><select id="r-${id}-energy-unit"><option value="kwh">kWh</option><option value="mwh">MWh</option><option value="gwh">GWh</option></select></div>
       <div><label>EF Unit</label><select id="r-${id}-ef-unit"><option value="kgco2e_per_kwh">kgCO2e/kWh</option><option value="gco2e_per_kwh">gCO2e/kWh</option><option value="tco2e_per_mwh">tCO2e/MWh</option></select></div>
-      <div><label>Latitude (optional)</label><input id="r-${id}-lat" type="number" step="any" /></div>
-      <div><label>Longitude (optional)</label><input id="r-${id}-lon" type="number" step="any" /></div>
+      <div><label>Locationality Preset</label><select id="r-${id}-locationality"><option value="same_zone">Same bidding zone</option><option value="adjacent_zone">Adjacent zone (congested)</option><option value="unconnected">Unconnected grid</option></select></div>
       <div><label>EF Input Mode</label><select id="r-${id}-ef-mode"><option value="default_technology">Default technology</option><option value="constant">Constant</option><option value="timeseries">CSV timeseries</option></select></div>
       <div id="r-${id}-ef-tech-wrap"><label>Default Technology</label><select id="r-${id}-ef-tech"><option value="solar_pv_utility">solar_pv_utility</option><option value="wind_onshore">wind_onshore</option><option value="wind_offshore">wind_offshore</option><option value="hydro">hydro</option><option value="nuclear">nuclear</option><option value="gas_ccgt">gas_ccgt</option><option value="coal">coal</option></select></div>
       <div id="r-${id}-ef-constant-wrap"><label>Constant EF Value</label><input id="r-${id}-ef-constant" type="number" step="any" /></div>
@@ -339,13 +334,12 @@ function addResource(prefill = null) {
     document.getElementById(`r-${id}-renewable`).value = String(prefill.is_renewable ?? true);
     document.getElementById(`r-${id}-energy-unit`).value = prefill.energy_unit || "kwh";
     document.getElementById(`r-${id}-ef-unit`).value = prefill.emissions_unit || "kgco2e_per_kwh";
+    document.getElementById(`r-${id}-locationality`).value = prefill.locationality_preset || "same_zone";
     document.getElementById(`r-${id}-ef-mode`).value = prefill.ef_input_mode || "default_technology";
     document.getElementById(`r-${id}-ef-tech`).value = prefill.default_technology || "solar_pv_utility";
     if (prefill.constant_ef !== undefined && prefill.constant_ef !== null) {
       document.getElementById(`r-${id}-ef-constant`).value = prefill.constant_ef;
     }
-    if (prefill.latitude !== undefined && prefill.latitude !== null) document.getElementById(`r-${id}-lat`).value = prefill.latitude;
-    if (prefill.longitude !== undefined && prefill.longitude !== null) document.getElementById(`r-${id}-lon`).value = prefill.longitude;
     if (prefill.energy_series) {
       document.getElementById(`r-${id}-energy-csv`).value = toCsv(prefill.energy_series.map((r) => ({ timestamp: r.timestamp, energy_kwh: r.value })));
     }
@@ -368,13 +362,8 @@ function updateGridEfVisibility() {
 }
 
 function projectPayload() {
-  const locKey = document.getElementById("locationality-preset")?.value || "same_zone";
-  const loc = LOCATIONALITY_PRESETS[locKey] || LOCATIONALITY_PRESETS.same_zone;
   return {
     timezone: "UTC",
-    site_latitude: Number(document.getElementById("site-lat").value),
-    site_longitude: Number(document.getElementById("site-lon").value),
-    deliverability_km: Number(loc.deliverabilityKm),
     sss_share_percent: Number(document.getElementById("sss-share").value || 0),
     fill_strategy: document.getElementById("fill-strategy").value,
     emissions_mode: document.getElementById("emissions-mode").value,
@@ -406,6 +395,7 @@ function collectResources() {
       is_renewable: document.getElementById(`r-${id}-renewable`).value === "true",
       energy_unit: document.getElementById(`r-${id}-energy-unit`).value,
       emissions_unit: document.getElementById(`r-${id}-ef-unit`).value,
+      locationality_preset: document.getElementById(`r-${id}-locationality`).value,
       ef_input_mode: efMode,
       default_technology: null,
       constant_ef: null,
@@ -413,11 +403,6 @@ function collectResources() {
       ef_series: [],
     };
     if (!payload.name) throw new Error(`Resource ${id} needs a name.`);
-
-    const lat = document.getElementById(`r-${id}-lat`).value.trim();
-    const lon = document.getElementById(`r-${id}-lon`).value.trim();
-    if (lat !== "") payload.latitude = Number(lat);
-    if (lon !== "") payload.longitude = Number(lon);
 
     if (efMode === "default_technology") {
       payload.default_technology = document.getElementById(`r-${id}-ef-tech`).value;
@@ -498,8 +483,8 @@ function renderSummary(summary) {
     ["Intensity (gCO2e/kWh)", summary.emissions_intensity_g_per_kwh],
     ["Renewable Served (kWh)", summary.renewable_served_kwh],
     ["Grid Served (kWh)", summary.grid_served_kwh],
-    ["Eligible Deliverable Served (kWh)", summary.eligible_deliverable_served_kwh],
-    ["Eligible Deliverable Served (%)", summary.eligible_deliverable_served_percent],
+    ["Eligible Locationality Served (kWh)", summary.eligible_locationality_served_kwh],
+    ["Eligible Locationality Served (%)", summary.eligible_locationality_served_percent],
     ["Hourly Matching (%)", hourlyPct],
     ["Legacy Annual Matching (%)", legacyPct],
     ["Compliance Gap (pp)", complianceGap],
@@ -823,7 +808,7 @@ function buildReportPack() {
       matching_annual_formula: "min(sum_h a_h, sum_h c_h) / sum_h c_h",
       interval_order: ["SSS allocation", "voluntary hourly matching", "residual emissions"],
       notes: [
-        "Eligible basis applies deliverability eligibility filters.",
+        "Eligible basis applies locationality eligibility filters.",
         "Physical basis includes all modeled resources.",
         "Use true hourly emissions for physically aligned impact analysis.",
       ],
@@ -1024,16 +1009,6 @@ document.getElementById("region-preset").addEventListener("change", () => {
   }
 });
 
-document.getElementById("locationality-preset").addEventListener("change", () => {
-  const key = document.getElementById("locationality-preset").value;
-  const p = LOCATIONALITY_PRESETS[key];
-  if (!p) return;
-  const text = document.getElementById("locationality-note");
-  if (text) {
-    text.textContent = `${p.label}: this setting drives deliverability eligibility in the model (${p.deliverabilityKm} km equivalent).`;
-  }
-});
-
 document.getElementById("run-demo").addEventListener("click", async () => {
   const scenarioId = document.getElementById("demo-scenario").value || null;
   const scenario = demoScenarios.find((s) => s.id === scenarioId);
@@ -1090,10 +1065,6 @@ loadDefaults().then(() => {
   regionSelect.innerHTML = Object.entries(REGION_PRESETS)
     .map(([k, v]) => `<option value="${k}">${v.label}</option>`)
     .join("");
-  document.getElementById("locationality-preset").value = "same_zone";
-  document.getElementById("locationality-note").textContent =
-    `${LOCATIONALITY_PRESETS.same_zone.label}: this setting drives deliverability eligibility in the model (${LOCATIONALITY_PRESETS.same_zone.deliverabilityKm} km equivalent).`;
-
   addResource();
   updateGridEfVisibility();
   showResultsSection("overview");

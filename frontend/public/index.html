@@ -195,16 +195,6 @@
       <h2>Project Configuration</h2>
       <div class="grid">
         <div><label>Region Preset</label><select id="region-preset"></select></div>
-        <div>
-          <label>Locationality Preset</label>
-          <select id="locationality-preset">
-            <option value="same_zone">Same bidding zone</option>
-            <option value="adjacent_zone">Adjacent zone (congested)</option>
-            <option value="unconnected">Unconnected grid</option>
-          </select>
-        </div>
-        <div><label>Site Latitude</label><input id="site-lat" type="number" step="any" value="51.5074" /></div>
-        <div><label>Site Longitude</label><input id="site-lon" type="number" step="any" value="-0.1278" /></div>
         <div><label>SSS Pro-rata Share (%)</label><input id="sss-share" type="number" min="0" max="100" step="0.1" value="0" /></div>
         <div><label>Emissions Mode</label><select id="emissions-mode"><option value="operational">Operational</option><option value="lifecycle">Lifecycle</option></select></div>
         <div><label>Missing Interval Strategy</label><select id="fill-strategy"><option value="reject">Reject</option><option value="forward_fill">Forward fill</option><option value="interpolate">Interpolate</option><option value="zero_fill">Zero fill</option></select></div>
@@ -213,7 +203,6 @@
         <div><label>Annual REC Price (USD/MWh)</label><input id="annual-rec-price" type="number" min="0" step="0.1" value="5" /></div>
         <div><label>Hourly T-EAC Price (USD/MWh)</label><input id="hourly-teac-price" type="number" min="0" step="0.1" value="15" /></div>
       </div>
-      <p id="locationality-note" class="small"></p>
     </div>
 
     <div class="card">
@@ -290,7 +279,7 @@
           <div>
             <label>Accounting Basis</label>
             <select id="results-basis">
-              <option value="eligible">Eligible Deliverable</option>
+              <option value="eligible">Eligible Locationality</option>
               <option value="physical">Physical</option>
             </select>
           </div>

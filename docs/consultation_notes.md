@@ -8,8 +8,8 @@ Source reviewed: `GHGP-Scope-2-Public-Consultation-Guidebook.pdf` in this reposi
 - The guidebook describes a shift from annual to hourly accounting for market-based claims, requiring same-hour matching of consumption and generation.
 - References: pages 3, 51, 52, 57.
 
-2. Deliverability / local sourcing direction
-- The guidebook describes narrowing spatial boundaries so claimed clean electricity is plausibly deliverable to load (example references to bidding-zone style boundaries).
+2. Locationality / local sourcing direction
+- The guidebook describes narrowing spatial boundaries so claimed clean electricity is plausibly eligible for local claims (example references to bidding-zone style boundaries).
 - References: pages 3, 20, 51, 57, 66.
 
 3. Residual treatment for unmatched load
@@ -21,12 +21,12 @@ Source reviewed: `GHGP-Scope-2-Public-Consultation-Guidebook.pdf` in this reposi
 - References: pages 3, 29, 35, 52, 61.
 
 5. Legacy annual approach as comparator
-- The guidebook contrasts current annual matching behavior vs hourly+deliverable updates.
+- The guidebook contrasts current annual matching behavior vs hourly+locational updates.
 - References: pages 52, 57, 60, 61.
 
 ## Implementation mapping in this repo
 - Hourly interval engine: `backend/app/compute.py`
-- Deliverability gating (distance threshold): `backend/app/compute.py`
+- Locationality gating: `backend/app/compute.py`
 - Legacy vs hourly comparison metrics: `backend/app/compute.py`, `docs/definitions.md`
 - Residual "what's left" grid import model: `backend/app/compute.py`
 - Profile/feasibility handling via explicit fill strategies: `backend/app/validators.py`, `frontend/public/index.html`

@@ -13,7 +13,6 @@ def test_demo_mode_runs_end_to_end():
             "timezone": "UTC",
             "site_latitude": 51.5074,
             "site_longitude": -0.1278,
-            "deliverability_km": 20,
             "fill_strategy": "reject",
             "emissions_mode": "operational",
         },

@@ -7,7 +7,7 @@ Simulate interval-based electricity emissions accounting with hourly matching, g
 - `load_profile`: interval demand series (`timestamp`, `load_kwh`)
 - `resources[]`: non-grid supply resources with energy profile and emissions factors
 - `grid`: final residual resource with emissions factor series or constant
-- `project`: deliverability and method controls
+- `project`: locationality and method controls
 
 ## Core Rules
 - Grid import is always residual: `grid_import = max(0, load - sum(non_grid_supply))`
@@ -15,7 +15,7 @@ Simulate interval-based electricity emissions accounting with hourly matching, g
 - Emissions are interval-based and aggregated to monthly/annual/lifetime
 - Hourly matching is computed with per-interval eligible clean supply
 - Legacy annual matching is computed from annual eligible supply netting
-- Deliverability gate excludes remote resources from matching metrics
+- Locationality preset excludes unconnected resources from matching metrics
 
 ## Validation
 - ISO-8601 timestamps with timezone required
